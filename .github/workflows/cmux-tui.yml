@@ -247,6 +247,18 @@ jobs:
         working-directory: cmux-tui
         run: cargo build -p cmux-tui
 
+      - name: Install zig for SDK conformance adapters
+        # The Zig SDK and its conformance adapters target Zig 0.15.2 (see
+        # bindings/conformance/README.md and cmux-tui-sdks.yml), while the
+        # ghostty-derived toolchain installed above serves the cmux-tui server
+        # build, which runs before this step. This publishes the SDK compiler
+        # on PATH and as CMUX_ZIG for the conformance steps below.
+        run: >-
+          ZIG_REQUIRED=0.15.2
+          ZIG_FORCE_LOCAL_INSTALL=1
+          ZIG_INSTALL_ROOT="$RUNNER_TEMP/zig-sdk-conformance"
+          ./scripts/install-zig-ci.sh
+
       - name: Python conformance fixtures
         run: python3 cmux-tui/bindings/conformance/runner.py
 
