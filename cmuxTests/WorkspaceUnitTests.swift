@@ -3054,6 +3054,7 @@ final class WorkspaceCreationWorkingDirectoryInheritanceTests: XCTestCase {
     func testDisabledInheritanceUsesGhosttyDefaultForNewWorkspaceCwd() throws {
         try withWorkspaceWorkingDirectoryInheritanceSetting(false) {
             let sourceCwd = "/tmp/zerocmux-source-\(UUID().uuidString)"
+            let fallbackCwd = "/tmp/zerocmux-ghostty-default-\(UUID().uuidString)"
             let manager = TabManager(
                 initialWorkingDirectory: sourceCwd,
                 autoWelcomeIfNeeded: false,
@@ -3070,6 +3071,7 @@ final class WorkspaceCreationWorkingDirectoryInheritanceTests: XCTestCase {
     func testExplicitNoInheritanceUsesGhosttyDefaultWhenGlobalInheritanceEnabled() throws {
         try withWorkspaceWorkingDirectoryInheritanceSetting(nil) {
             let sourceCwd = "/tmp/zerocmux-source-\(UUID().uuidString)"
+            let fallbackCwd = "/tmp/zerocmux-ghostty-default-\(UUID().uuidString)"
             let manager = TabManager(
                 initialWorkingDirectory: sourceCwd,
                 autoWelcomeIfNeeded: false,

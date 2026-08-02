@@ -1,4 +1,3 @@
-import CmuxAuthRuntime
 import CmuxBrowser
 import Foundation
 import Testing
@@ -13,6 +12,7 @@ import WebKit
 @MainActor
 @Suite(.serialized)
 struct BrowserWebContentProcessTests {
+    private let recoveryURL = URL(string: "data:text/html,zerocmux-recovery")!
     @Test
     func browserPanelsShareDefaultWebsiteDataStore() {
         let first = BrowserPanel(workspaceId: UUID())

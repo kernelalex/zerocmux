@@ -1180,4 +1180,124 @@ extension CLINotifyProcessIntegrationRegressionTests {
             .appending("\n")
             .write(to: url, atomically: true, encoding: .utf8)
     }
+
+    private func generatedVMSSHInitialStartupCommand() throws -> String {
+        let cliPath = try bundledCLIPath()
+        let socketPath = makeSocketPath("vm-ssh-startup")
+        let listenerFD = try bindUnixSocket(at: socketPath)
+        let state = MockSocketServerState()
+        let vmID = "vm-test-startup"
+        let workspaceID = "11111111-1111-1111-1111-111111111111"
+        let workspaceRef = "workspace:vm-startup"
+
+        defer {
+            Darwin.close(listenerFD)
+            unlink(socketPath)
+        }
+
+        let serverHandled = startMockServer(listenerFD: listenerFD, state: state) { line in
+            guard let payload = self.jsonObject(line),
+                  let id = payload["id"] as? String,
+                  let method = payload["method"] as? String else {
+                return self.malformedRequestResponse(raw: line)
+            }
+
+            switch method {
+            case "vm.attach_info":
+                let params = payload["params"] as? [String: Any] ?? [:]
+                XCTAssertEqual(params["id"] as? String, vmID)
+                XCTAssertEqual(params["require_daemon"] as? Bool, true)
+                return self.v2Response(
+                    id: id,
+                    ok: true,
+                    result: [
+                        "transport": "ssh",
+                        "host": "gateway.freestyle.sh",
+                        "port": 2222,
+                        "username": "cmux",
+                        "credential": [
+                            "kind": "password",
+                            "value": "lease-token",
+                        ],
+                    ]
+                )
+            case "workspace.create":
+                return self.v2Response(
+                    id: id,
+                    ok: true,
+                    result: [
+                        "workspace_id": workspaceID,
+                    ]
+                )
+            case "workspace.rename":
+                return self.v2Response(id: id, ok: true, result: ["workspace_id": workspaceID])
+            case "workspace.remote.configure":
+                return self.v2Response(
+                    id: id,
+                    ok: true,
+                    result: [
+                        "workspace_id": workspaceID,
+                        "workspace_ref": workspaceRef,
+                        "remote": [
+                            "enabled": true,
+                            "state": "connecting",
+                        ],
+                    ]
+                )
+            case "workspace.select":
+                return self.v2Response(id: id, ok: true, result: ["workspace_id": workspaceID])
+            default:
+                return self.v2Response(
+                    id: id,
+                    ok: false,
+                    error: ["code": "unexpected", "message": "Unexpected method \(method)"]
+                )
+            }
+        }
+
+        var environment = ProcessInfo.processInfo.environment
+        environment["CMUX_SOCKET_PATH"] = socketPath
+        environment["CMUX_CLI_SENTRY_DISABLED"] = "1"
+        environment["CMUX_CLAUDE_HOOK_SENTRY_DISABLED"] = "1"
+
+        let result = runProcess(
+            executablePath: cliPath,
+            arguments: ["vm", "ssh", vmID],
+            environment: environment,
+            timeout: 5
+        )
+
+        wait(for: [serverHandled], timeout: 5)
+        XCTAssertFalse(result.timedOut, result.stderr)
+        XCTAssertEqual(result.status, 0, result.stderr)
+        XCTAssertTrue(result.stderr.isEmpty, result.stderr)
+
+        let requests = try state.commands.map { line -> [String: Any] in
+            let data = try XCTUnwrap(line.data(using: .utf8))
+            return try XCTUnwrap(JSONSerialization.jsonObject(with: data, options: []) as? [String: Any])
+        }
+        let createRequest = try XCTUnwrap(
+            requests.first { ($0["method"] as? String) == "workspace.create" }
+        )
+        let createParams = try XCTUnwrap(createRequest["params"] as? [String: Any])
+        return try XCTUnwrap(createParams["initial_command"] as? String)
+    }
+
+    private func waitForSSHSignalLifecycleLog(
+        _ url: URL,
+        timeout: TimeInterval = 2,
+        condition: (String) -> Bool
+    ) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            let contents = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+            if condition(contents) {
+                return true
+            }
+            Thread.sleep(forTimeInterval: 0.02)
+        }
+        let contents = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+        return condition(contents)
+    }
+
 }

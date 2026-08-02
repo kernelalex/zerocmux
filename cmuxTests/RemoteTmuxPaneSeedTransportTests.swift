@@ -2,6 +2,7 @@ import AppKit
 import CmuxRemoteSession
 import CmuxTerminal
 import Foundation
+import GhosttyKit
 import Testing
 
 #if canImport(cmux_DEV)
@@ -1487,18 +1488,25 @@ import Testing
         surface.onRuntimeReady = nil
     }
 
+    /// zerocmux: the mobile render-grid exporter is removed; read the grid
+    /// geometry straight from libghostty instead.
+    private func appliedTerminalGrid(_ surface: TerminalSurface) -> (columns: Int, rows: Int)? {
+        guard let runtimeSurface = surface.liveSurfaceForGhosttyAccess(
+            reason: "test.appliedTerminalGrid"
+        ) else { return nil }
+        var metrics = ghostty_surface_grid_metrics_s()
+        guard ghostty_surface_grid_metrics(runtimeSurface, &metrics) else { return nil }
+        return (Int(metrics.columns), Int(metrics.rows))
+    }
+
     private func waitForAppliedTerminalGrid(
         _ surface: TerminalSurface,
         columns: Int,
         rows: Int
     ) async {
         await waitForGhosttyState(surface) {
-            guard let frame = surface.mobileRenderGridFrame(
-                stateSeq: 0,
-                scrollbackLines: 0,
-                includeTheme: false
-            )?.frame else { return false }
-            return frame.columns == columns && frame.rows == rows
+            guard let grid = appliedTerminalGrid(surface) else { return false }
+            return grid.columns == columns && grid.rows == rows
         }
     }
 
@@ -1507,14 +1515,7 @@ import Testing
         columns: Int,
         rows: Int
     ) async {
-        let gridIsApplied = {
-            surface.mobileRenderGridFrame(
-                stateSeq: 0,
-                scrollbackLines: 0,
-                includeTheme: false
-            )?.frame
-        }
-        if let frame = gridIsApplied(), frame.columns == columns, frame.rows == rows {
+        if let grid = appliedTerminalGrid(surface), grid.columns == columns, grid.rows == rows {
             return
         }
 
@@ -1537,8 +1538,8 @@ import Testing
 
         GhosttyApp.shared.scheduleTick()
         for await _ in events {
-            guard let frame = gridIsApplied() else { continue }
-            if frame.columns == columns, frame.rows == rows { return }
+            guard let grid = appliedTerminalGrid(surface) else { continue }
+            if grid.columns == columns, grid.rows == rows { return }
         }
     }
 

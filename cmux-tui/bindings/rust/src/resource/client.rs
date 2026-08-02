@@ -975,11 +975,14 @@ mod tests {
     fn cancellable_connect_reuses_one_socket_across_poll_slices() {
         let probe = crate::codec::ForcedPendingConnectProbe::install();
         let cancellation = super::super::options::CancellationToken::new();
+        // A generous deadline keeps this deterministic on slow/preempted CI
+        // runners: the assertions below need at least two 10ms cancellation
+        // polls to land before the connect deadline expires.
         let options = RequestOptions::new()
-            .with_timeout(Duration::from_millis(35))
+            .with_timeout(Duration::from_millis(750))
             .unwrap()
             .with_cancellation(cancellation);
-        let budget = CallBudget::new(options, Duration::from_secs(1)).unwrap();
+        let budget = CallBudget::new(options, Duration::from_secs(2)).unwrap();
         let config = Config::from_socket_path("pending-connect.sock");
 
         assert!(matches!(

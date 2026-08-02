@@ -3,7 +3,11 @@ import CmuxUpdater
 import QuartzCore
 import SwiftUI
 import Testing
+#if canImport(cmux_DEV)
 @testable import cmux_DEV
+#elseif canImport(cmux)
+@testable import cmux
+#endif
 
 @Suite(.serialized)
 @MainActor
