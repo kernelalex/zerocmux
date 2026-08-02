@@ -33,11 +33,17 @@ extension AgentNotificationRegressionTests {
         let originalTabManager = appDelegate.tabManager
         let originalNotificationStore = appDelegate.notificationStore
         let originalAppFocusOverride = AppFocusState.overrideIsFocused
+        // `notification.create_for_caller` resolves the socket's ACTIVE manager
+        // from TerminalController, which the app sets via setActiveTabManager.
+        // Set it explicitly so the fixture does not depend on whichever test
+        // ran before it in this shard.
+        let originalActiveTabManager = TerminalController.shared.activeTabManagerForCallerNotification()
 
         store.replaceNotificationsForTesting([])
         store.configureNotificationDeliveryHandlerForTesting { _, _ in }
         store.configureSuppressedNotificationFeedbackHandlerForTesting { _, _ in }
         appDelegate.tabManager = manager
+        TerminalController.shared.setActiveTabManager(manager)
         appDelegate.notificationStore = store
         AppFocusState.overrideIsFocused = false
 
@@ -53,6 +59,7 @@ extension AgentNotificationRegressionTests {
             store.resetNotificationDeliveryHandlerForTesting()
             store.resetSuppressedNotificationFeedbackHandlerForTesting()
             appDelegate.tabManager = originalTabManager
+            TerminalController.shared.setActiveTabManager(originalActiveTabManager)
             appDelegate.notificationStore = originalNotificationStore
             AppFocusState.overrideIsFocused = originalAppFocusOverride
         }
