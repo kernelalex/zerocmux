@@ -247,6 +247,14 @@ jobs:
         working-directory: cmux-tui
         run: cargo build -p cmux-tui
 
+      - name: Install TypeScript binding dependencies
+        # The conformance runner and e2e.sh build the TypeScript SDK with
+        # `npm run build`; install its pinned devDependencies (typescript,
+        # @types/node) instead of relying on whatever global toolchain the
+        # runner image happens to carry.
+        working-directory: cmux-tui/bindings/typescript
+        run: npm ci --no-audit --no-fund
+
       - name: Install zig for SDK conformance adapters
         # The Zig SDK and its conformance adapters target Zig 0.15.2 (see
         # bindings/conformance/README.md and cmux-tui-sdks.yml), while the
