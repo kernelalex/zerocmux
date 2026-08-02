@@ -1004,10 +1004,10 @@ mod tests {
             cancel_from_thread.cancel();
         });
         let options = RequestOptions::new()
-            .with_timeout(Duration::from_secs(1))
+            .with_timeout(Duration::from_secs(10))
             .unwrap()
             .with_cancellation(cancellation);
-        let budget = CallBudget::new(options, Duration::from_secs(1)).unwrap();
+        let budget = CallBudget::new(options, Duration::from_secs(10)).unwrap();
         let config = Config::from_socket_path("cancel-pending-connect.sock");
         let started = Instant::now();
 
@@ -1016,7 +1016,10 @@ mod tests {
             Err(Error::Cancelled(_))
         ));
         canceler.join().unwrap();
-        assert!(started.elapsed() < Duration::from_millis(250));
+        // The Cancelled result plus this bound proves cancellation interrupted
+        // the pending connect instead of riding out the 10s timeout; the wide
+        // margin keeps slow CI scheduling from tripping it.
+        assert!(started.elapsed() < Duration::from_secs(5));
         assert!(probe.polls() >= 2, "the cancellation should interrupt a pending connect");
         assert_eq!(probe.attempts(), 1, "cancellation must close one pending Unix socket");
     }

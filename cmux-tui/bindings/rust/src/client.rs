@@ -670,11 +670,17 @@ mod tests {
     #[test]
     fn close_handle_unblocks_a_reader() {
         let (path, server) = spawn_stream_server("close", |mut stream| {
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
             let mut request = String::new();
-            BufReader::new(stream.try_clone().unwrap()).read_line(&mut request).unwrap();
+            reader.read_line(&mut request).unwrap();
             let id = serde_json::from_str::<Value>(&request).unwrap()["id"].clone();
             writeln!(stream, "{}", serde_json::json!({"id": id, "ok": true, "data": {}})).unwrap();
-            thread::sleep(Duration::from_millis(100));
+            // Hold the connection open until the client hangs up so close()
+            // always interrupts a live stream; a fixed linger can race slow CI
+            // scheduling and turn the expected Closed error into a transport
+            // EOF error.
+            let mut rest = String::new();
+            let _ = reader.read_line(&mut rest);
         });
         let mut client = CmuxClient::connect(
             ClientConfig::from_socket_path(&path).with_timeout(Duration::from_secs(5)),
