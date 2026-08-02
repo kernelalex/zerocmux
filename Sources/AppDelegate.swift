@@ -1297,7 +1297,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             "appDelegate.didFinish.begin",
             fields: [
                 "xctest": isRunningUnderXCTest ? "1" : "0",
-                "telemetry": telemetryEnabled ? "1" : "0"
+                // zerocmux: telemetry is hardcoded off; log the literal so the
+                // constant-false ternary does not trip the warning budget.
+                "telemetry": "0"
             ]
         )
         AppIconLaunchState.markDidFinishLaunching()

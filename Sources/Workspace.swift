@@ -1460,36 +1460,11 @@ extension Workspace {
                 tmuxStartCommand: restoredTmuxStartCommand,
                 hasResumeStartupWork: restoredBindingLaunch != nil || restoredAgentResumeLaunch != nil
             )
-            // zerocmux is itself resuming this agent session onto the restored surface. Some agents
-            // (codex) fire NO SessionStart hook on resume, and an `sr codex resume` bypasses the
-            // hook-injecting shim entirely, so record the (session, surface) binding from cmux's
-            // own authority instead of waiting for a hook that will not arrive; otherwise the chat
-            // registry keeps the stale pre-relaunch record (dead pid -> .ended) and the iOS GUI
-            // shows it read-only. The actual call is made AFTER the surface is created, keyed on
-            // the real `terminalPanel.id` (which differs from `snapshot.id` when a surface-id
-            // collision forces a fresh id on restore-into-live / duplicate-workspace). The
-            // (session id, agent source) comes from the restorable-agent snapshot when present,
-            // else from the agent-hook resume binding (most restores carry only the binding, whose `checkpointId` IS the agent session id).
-            // Skipped when `agentSessionAlreadyActive`: cmux decided NOT to fire a resume onto
-            // this panel (a live process for the same session already exists elsewhere, or this
-            // panel lost the per-launch dedup race), so this panel must not steal the session
-            // registry's authoritative (surface, workspace) pointer away from the panel that
-            // actually owns the live process — that would send mobile/chat routing to a dead
-            // duplicate instead of the real one (#8446).
-            let resumeReboundSession: (sessionID: String, source: String)? = {
-                if let restorableAgent, !agentSessionAlreadyActive {
-                    return (restorableAgent.sessionId, restorableAgent.kind.rawValue)
-                }
-                if let binding = resumeBinding,
-                   binding.isAgentHookBinding,
-                   let checkpoint = binding.checkpointId?.trimmingCharacters(in: .whitespacesAndNewlines),
-                   !checkpoint.isEmpty,
-                   let bindingKind = binding.kind?.trimmingCharacters(in: .whitespacesAndNewlines),
-                   !bindingKind.isEmpty {
-                    return (checkpoint, bindingKind)
-                }
-                return nil
-            }()
+            // zerocmux: upstream computes a resumeReboundSession here and, after the
+            // surface is created, re-binds the resumed agent session into the mobile
+            // chat registry via AgentChatTranscriptService.recordResumeIntent (#8446).
+            // The fork excludes the mobile host, so that consumer does not exist and
+            // the computation is omitted.
             let restoredRemotePTYAttachCommand = restoredRemotePTYSessionID.map {
                 remotePTYAttachStartupCommand(
                     sessionID: $0,
