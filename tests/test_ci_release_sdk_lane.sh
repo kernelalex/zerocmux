@@ -32,8 +32,8 @@ require_job_contains() {
 require_job_contains \
   "$RELEASE_FILE" \
   "build-ghostty-cli-helper" \
-  'runs-on: blacksmith-6vcpu-macos-15' \
-  "release must build the real Ghostty CLI helper on Blacksmith macOS 15"
+  'runs-on: depot-macos-26' \
+  "release must build the real Ghostty CLI helper on Depot macOS 26"
 
 require_job_contains \
   "$RELEASE_FILE" \
@@ -44,8 +44,8 @@ require_job_contains \
 require_job_contains \
   "$CI_FILE" \
   "release-build" \
-  'runs-on: blacksmith-6vcpu-macos-26' \
-  "CI release-build must compile the app on Blacksmith macOS 26"
+  'runs-on: depot-macos-26' \
+  "CI release-build must compile the app on Depot macOS 26"
 
 for workflow in "$CI_FILE" "$RELEASE_FILE"; do
   if ! grep -Fq "CMUX_SKIP_ZIG_BUILD=1 xcodebuild" "$workflow"; then
@@ -70,7 +70,7 @@ if ! grep -Fq "actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef35013
 fi
 
 swift_package_section="$(job_section "$CI_FILE" "swift-package-tests")"
-if [[ "$swift_package_section" != *'runs-on: ${{ vars.MACOS_RUNNER_DUAL_XCODE || '\''blacksmith-6vcpu-macos-15'\'' }}'* ]]; then
+if [[ "$swift_package_section" != *'runs-on: ${{ vars.MACOS_RUNNER_DUAL_XCODE || '\''depot-macos-26'\'' }}'* ]]; then
   echo "FAIL: CI swift-package-tests must use the dual-Xcode runner lane" >&2
   exit 1
 fi

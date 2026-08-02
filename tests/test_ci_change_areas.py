@@ -687,7 +687,7 @@ def test_required_macos_topology_keeps_fork_display_job_and_collapsed_helper() -
     assert 'kill -9 "$VDISPLAY_PID"' in runtime_block
     assert "scripts/ci/virtual-display-lock.sh reap-strays" in runtime_block
     assert runtime_block.rfind("scripts/ci/virtual-display-lock.sh reap-strays") < runtime_block.rfind("scripts/ci/virtual-display-lock.sh release")
-    assert "runs-on: blacksmith-6vcpu-macos-15" in ui_block
+    assert "runs-on: depot-macos-26" in ui_block
     assert "DisplayResolutionRegressionUITests" in ui_block
     assert "BrowserPaneNavigationKeybindUITests" in ui_block
     assert "timeout-minutes: 40" in package_block
@@ -723,8 +723,8 @@ def test_perf_activation_workflow_keeps_required_status_while_gating_benchmark()
 
     assert "needs: activation_changes" in benchmark
     assert "if: ${{ needs.activation_changes.outputs.macos == 'true' }}" in benchmark
-    # The benchmark routes through MACOS_RUNNER_15 (Blacksmith) for all events,
-    # including PRs. Depot remains only as a manual workflow_dispatch override.
+    # The benchmark routes through the MACOS_RUNNER_15 repo variable for all
+    # events, including PRs, with depot-macos-26 as the hardcoded fallback.
     assert "vars.MACOS_RUNNER_15" in benchmark
 
     assert "      - activation_changes" in sentinel
