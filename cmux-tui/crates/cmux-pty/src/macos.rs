@@ -42,7 +42,10 @@ pub(crate) fn open(size: PtySize) -> anyhow::Result<(Box<dyn MasterPty + Send>, 
             &mut slave_fd,
             std::ptr::null_mut(),
             std::ptr::null_mut(),
-            &mut window_size,
+            // libc declares openpty's winsize parameter as *const on Linux but
+            // *mut on Apple platforms; an inferred raw-pointer cast keeps this
+            // one call site compiling warning-free on both.
+            (&raw mut window_size) as _,
         )
     };
     if result != 0 {
