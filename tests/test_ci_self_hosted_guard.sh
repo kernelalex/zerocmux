@@ -3,9 +3,6 @@
 # Depot runners. This keeps those lanes from silently drifting back to
 # GitHub-hosted macos-* runners or onto other third-party/self-hosted
 # providers (warp-/blacksmith-) that the project no longer runs always-on CI on.
-#
-# Exception: cmux-browser.yml stays GitHub-hosted by design (its PR lane runs
-# untrusted code) and is excluded from the provider sweep below.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
