@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   web-frontend:
-    runs-on: ${{ vars.LINUX_RUNNER || 'blacksmith-4vcpu-ubuntu-2404' }}
+    runs-on: ${{ vars.LINUX_RUNNER || 'depot-ubuntu-24.04' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -50,7 +50,7 @@ jobs:
           npm test
 
   valgrind-leak-check:
-    runs-on: ${{ vars.LINUX_RUNNER || 'blacksmith-4vcpu-ubuntu-2404' }}
+    runs-on: ${{ vars.LINUX_RUNNER || 'depot-ubuntu-24.04' }}
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -139,7 +139,7 @@ jobs:
 
   test:
     name: test (${{ matrix.os }})
-    runs-on: ${{ matrix.os == 'macos' && (vars.MACOS_RUNNER_15 || 'blacksmith-6vcpu-macos-15') || (vars.LINUX_RUNNER || 'blacksmith-4vcpu-ubuntu-2404') }}
+    runs-on: ${{ matrix.os == 'macos' && (vars.MACOS_RUNNER_15 || 'depot-macos-26') || (vars.LINUX_RUNNER || 'depot-ubuntu-24.04') }}
     timeout-minutes: 40
     strategy:
       fail-fast: false
@@ -209,7 +209,7 @@ jobs:
           echo "::notice::attach smoke skipped: pin-era redraw livelock saturates Blacksmith runners; re-enable by setting repo variable CMUX_TUI_SMOKE_ENABLED=true after the next upstream sync brings the post-pin renderer fix-train (documented in task-11b-report round 9)"
 
   bindings-e2e:
-    runs-on: ${{ vars.LINUX_RUNNER || 'blacksmith-4vcpu-ubuntu-2404' }}
+    runs-on: ${{ vars.LINUX_RUNNER || 'depot-ubuntu-24.04' }}
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

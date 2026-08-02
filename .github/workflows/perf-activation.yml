@@ -15,9 +15,7 @@ on:
         type: choice
         options:
           - auto
-          - blacksmith-6vcpu-macos-15
-          - blacksmith-6vcpu-macos-26
-          - blacksmith-6vcpu-macos-latest
+          - depot-macos-26
           - warp-macos-15-arm64-6x
           - depot-macos-latest
           - depot-macos-14
@@ -44,7 +42,7 @@ concurrency:
 
 jobs:
   activation_changes:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: depot-ubuntu-24.04
     timeout-minutes: 5
     outputs:
       macos: ${{ steps.detect.outputs.macos }}
@@ -107,15 +105,15 @@ jobs:
   activation-session-benchmark:
     needs: activation_changes
     if: ${{ needs.activation_changes.outputs.macos == 'true' }}
-    runs-on: ${{ ((!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'macos-15') || inputs.runner) }}
+    runs-on: ${{ ((!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'depot-macos-26') || inputs.runner) }}
     timeout-minutes: 45
     env:
       PERF_TAG: perf-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Validate Depot runner identity
-        if: ${{ startsWith(((!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'macos-15') || inputs.runner), 'depot-macos-') }}
+        if: ${{ startsWith(((!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'depot-macos-26') || inputs.runner), 'depot-macos-') }}
         env:
-          REQUESTED_RUNNER: ${{ ((!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'macos-15') || inputs.runner) }}
+          REQUESTED_RUNNER: ${{ ((!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'depot-macos-26') || inputs.runner) }}
           RUNNER_CONTEXT_NAME: ${{ runner.name }}
         run: |
           set -euo pipefail
@@ -175,8 +173,8 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: .ci-source-packages
-          key: spm-${{ ((!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'macos-15') || inputs.runner) }}-${{ hashFiles('cmux.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
-          restore-keys: spm-${{ ((!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'macos-15') || inputs.runner) }}-
+          key: spm-${{ ((!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'depot-macos-26') || inputs.runner) }}-${{ hashFiles('cmux.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: spm-${{ ((!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'depot-macos-26') || inputs.runner) }}-
 
       - name: Sanitize Swift package cache
         run: python3 scripts/ci/sanitize-xcode-source-packages-cache.py .ci-source-packages
@@ -356,7 +354,7 @@ jobs:
       - activation_changes
       - activation-session-benchmark
     if: ${{ always() }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: depot-ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Check activation benchmark routing

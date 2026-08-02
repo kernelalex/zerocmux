@@ -28,7 +28,7 @@ on:
 
 jobs:
   tests:
-    runs-on: blacksmith-6vcpu-macos-15
+    runs-on: depot-macos-26
     timeout-minutes: 20
     steps:
       - name: Clear stale git locks (self-hosted reused workspace)

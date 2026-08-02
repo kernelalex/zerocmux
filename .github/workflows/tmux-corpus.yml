@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   remote-daemon-fuzz:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: depot-ubuntu-24.04
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -61,7 +61,7 @@ jobs:
 
   terminal-nightly:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: blacksmith-6vcpu-macos-15
+    runs-on: depot-macos-26
     timeout-minutes: 30
     env:
       # XCTest app-host crashes can leave xcodebuild waiting in Swift's crash

@@ -9,23 +9,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14-large
-            timeout: 60
-            run_unit_tests: false
-            startup_smoke: true
-            virtual_display: true
-            skip_zig: false
-            expected_arch: x86_64
-            expected_os_major: "14"
-          - os: blacksmith-6vcpu-macos-15
-            timeout: 30
-            run_unit_tests: true
-            startup_smoke: true
-            virtual_display: true
-            skip_zig: false
-            expected_arch: ""
-            expected_os_major: ""
-          - os: macos-26
+          # Depot runner policy: all macOS lanes run on depot-macos-26. The
+          # former macos-14 (x86_64) and macos-15 compatibility entries are
+          # collapsed; restore a version spread here if older-OS coverage
+          # becomes available on Depot.
+          - os: depot-macos-26
             timeout: 30
             run_unit_tests: true
             startup_smoke: true

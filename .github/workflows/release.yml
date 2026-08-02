@@ -18,7 +18,7 @@ jobs:
   # built on macOS 15 and installed into the app as a prebuilt artifact
   # (mirrors the green release-build lane in ci.yml).
   build-ghostty-cli-helper:
-    runs-on: blacksmith-6vcpu-macos-15
+    runs-on: depot-macos-26
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -63,7 +63,7 @@ jobs:
 
   build-sign-notarize:
     needs: build-ghostty-cli-helper
-    runs-on: blacksmith-6vcpu-macos-26
+    runs-on: depot-macos-26
     environment: release
     timeout-minutes: 120
     steps:

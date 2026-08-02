@@ -26,7 +26,7 @@ env:
 
 jobs:
   decide:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: depot-ubuntu-24.04
     outputs:
       should_build: ${{ steps.decide.outputs.should_build }}
       head_sha: ${{ steps.decide.outputs.head_sha }}
@@ -95,7 +95,7 @@ jobs:
   build-sign-notarize-nightly:
     needs: decide
     if: needs.decide.outputs.should_build == 'true'
-    runs-on: blacksmith-6vcpu-macos-15
+    runs-on: depot-macos-26
     timeout-minutes: 20
     steps:
       - name: Checkout build ref
