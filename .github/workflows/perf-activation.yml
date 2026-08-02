@@ -9,7 +9,7 @@ on:
         required: false
         default: ""
       runner:
-        description: macOS runner (auto follows MACOS_RUNNER_15, default Blacksmith; pick warp-/depot-* to override)
+        description: macOS runner (auto follows MACOS_RUNNER_15, default depot-macos-26; pick warp-/depot-* to override)
         required: false
         default: auto
         type: choice

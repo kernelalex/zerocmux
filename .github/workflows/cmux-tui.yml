@@ -192,7 +192,7 @@ jobs:
 
       # The attach smoke is temporarily opt-in: at the merged upstream pin an
       # attached client can enter a redraw livelock (an identical cursor-park
-      # frame repeated forever) that saturates this repo's Blacksmith runners
+      # frame repeated forever) that saturates this repo's CI runners
       # and fails the first-attach echo assertion; upstream's faster hosted
       # runners absorb it and their CI is green over the same runtime. The
       # renderer fix-train landed upstream post-pin and arrives at the next
@@ -206,7 +206,7 @@ jobs:
       - name: Detach/reattach smoke skip notice
         if: ${{ vars.CMUX_TUI_SMOKE_ENABLED != 'true' }}
         run: |
-          echo "::notice::attach smoke skipped: pin-era redraw livelock saturates Blacksmith runners; re-enable by setting repo variable CMUX_TUI_SMOKE_ENABLED=true after the next upstream sync brings the post-pin renderer fix-train (documented in task-11b-report round 9)"
+          echo "::notice::attach smoke skipped: pin-era redraw livelock saturates CI runners; re-enable by setting repo variable CMUX_TUI_SMOKE_ENABLED=true after the next upstream sync brings the post-pin renderer fix-train (documented in task-11b-report round 9)"
 
   bindings-e2e:
     runs-on: ${{ vars.LINUX_RUNNER || 'depot-ubuntu-24.04' }}

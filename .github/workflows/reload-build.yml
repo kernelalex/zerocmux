@@ -1,12 +1,14 @@
 name: reload-build
 
-# Dispatchable tagged dev-build for the cloud reload scripts' Blacksmith builder.
+# Dispatchable tagged dev-build for the cloud reload scripts' hosted builder.
 #
-# scripts/reload-cloud.sh --builder blacksmith (in the cmuxterm-hq control repo)
-# dispatches this workflow against an ephemeral branch holding the caller's
-# working tree, then downloads the produced artifact and installs it locally. This is the Blacksmith alternative to
-# SSH-leasing a fleet Mac. It is workflow_dispatch ONLY: nothing here runs on push
-# or pull_request, so it never adds to the heavy CI fan-out.
+# scripts/reload-cloud.sh --builder blacksmith (in the cmuxterm-hq control repo;
+# the flag name is that repo's historical contract even though this job now runs
+# on Depot runners) dispatches this workflow against an ephemeral branch holding
+# the caller's working tree, then downloads the produced artifact and installs
+# it locally. This is the cloud-runner alternative to SSH-leasing a fleet Mac.
+# It is workflow_dispatch ONLY: nothing here runs on push or pull_request, so it
+# never adds to the heavy CI fan-out.
 
 on:
   workflow_dispatch:
