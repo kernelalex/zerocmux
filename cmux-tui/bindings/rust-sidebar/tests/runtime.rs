@@ -264,7 +264,9 @@ fn runtime_receives_render_snapshots_forwards_input_and_cancels_cleanly() {
         },
     )
     .unwrap();
-    let deadline = Instant::now() + Duration::from_secs(2);
+    // Liveness bound only: generous so valgrind/CI scheduling cannot time out
+    // an update that is genuinely delivered.
+    let deadline = Instant::now() + Duration::from_secs(60);
     while runtime.poll_updates() == 0 {
         assert!(Instant::now() < deadline);
         thread::sleep(Duration::from_millis(5));
@@ -318,7 +320,7 @@ fn runtime_remains_attached_across_idle_request_timeout_and_accepts_late_snapsho
     assert!(matches!(runtime.state(), SidebarRuntimeState::Attached));
     assert!(runtime.model().error.is_none());
 
-    let deadline = Instant::now() + Duration::from_secs(1);
+    let deadline = Instant::now() + Duration::from_secs(60);
     while runtime.poll_updates() == 0 {
         assert!(Instant::now() < deadline);
         thread::sleep(Duration::from_millis(5));
@@ -365,7 +367,9 @@ fn bounded_queue_overflow_cancels_and_reports_recovery() {
     )
     .unwrap();
     thread::sleep(Duration::from_millis(50));
-    let deadline = Instant::now() + Duration::from_secs(2);
+    // Liveness bound only: valgrind runs this loop tens of times slower than
+    // native, so keep the overflow-report deadline far from the fast path.
+    let deadline = Instant::now() + Duration::from_secs(60);
     loop {
         runtime.poll_updates();
         if runtime.model().error.is_some() {
@@ -417,7 +421,7 @@ fn preserves_structured_gap_and_reattaches_without_discarding_the_last_frame() {
         .session(SessionId::parse(SESSION).unwrap())
         .sidebar_view(SidebarViewId::parse(VIEW).unwrap());
     let mut runtime = SidebarRuntime::start(view, SidebarConfig::default()).unwrap();
-    let deadline = Instant::now() + Duration::from_secs(2);
+    let deadline = Instant::now() + Duration::from_secs(60);
     loop {
         runtime.poll_updates();
         if matches!(

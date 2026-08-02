@@ -126,13 +126,15 @@ impl DaemonCleanupPauseHandle {
     }
 
     fn wait_until_reached(&self) {
+        // Liveness bound only: generous so oversubscribed CI runners cannot
+        // time out a pause that is genuinely reached.
         self.reached
-            .recv_timeout(Duration::from_secs(3))
+            .recv_timeout(Duration::from_secs(30))
             .expect("daemon shutdown did not reach the lifecycle cleanup pause");
     }
 
     fn assert_not_reached_before(&self, other_shutdown: &thread::JoinHandle<anyhow::Result<()>>) {
-        let deadline = std::time::Instant::now() + Duration::from_secs(3);
+        let deadline = std::time::Instant::now() + Duration::from_secs(30);
         loop {
             match self.reached.try_recv() {
                 Ok(()) => panic!("an unrelated daemon entered the lifecycle cleanup pause"),
@@ -4308,7 +4310,7 @@ mod tests {
 
         let runtime_path = state_dir.join("runtime.json");
         let outcome_path = state_dir.join("shutdown.json");
-        let deadline = std::time::Instant::now() + Duration::from_secs(3);
+        let deadline = std::time::Instant::now() + Duration::from_secs(30);
         while (runtime_path.exists() || !outcome_path.exists())
             && std::time::Instant::now() < deadline
         {
