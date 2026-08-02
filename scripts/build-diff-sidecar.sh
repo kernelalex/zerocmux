@@ -60,8 +60,17 @@ for arch in $requested_archs; do
   seen_targets="$seen_targets $target"
   ensure_rust_target "$target"
   target_dir="${BUILD_WORK_DIR}/${target}"
-  CARGO_TARGET_DIR="$target_dir" \
-    MACOSX_DEPLOYMENT_TARGET="${CMUX_DIFF_SIDECAR_MIN_MACOS:-14.0}" \
+  # The deployment target is applied as a target-only link flag instead of the
+  # MACOSX_DEPLOYMENT_TARGET env var: the env var also lowers the minos of the
+  # HOST proc-macro dylibs cargo builds, and on macOS 26/27-beta hosts dyld
+  # rejects those ("mis-aligned LINKEDIT string pool"), failing the build.
+  # RUSTFLAGS only reaches target units when --target is passed, so the final
+  # binary keeps its minos while proc-macros stay loadable on the build host.
+  # env -u also drops the MACOSX_DEPLOYMENT_TARGET that Xcode exports into
+  # every script phase, which would otherwise reach the host units anyway.
+  env -u MACOSX_DEPLOYMENT_TARGET \
+    CARGO_TARGET_DIR="$target_dir" \
+    RUSTFLAGS="${RUSTFLAGS:-} -Clink-arg=-mmacosx-version-min=${CMUX_DIFF_SIDECAR_MIN_MACOS:-14.0}" \
     "$CARGO_RUNNER" build \
       --manifest-path "${CRATE_DIR}/Cargo.toml" \
       --bin "$BINARY_NAME" \

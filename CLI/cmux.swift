@@ -28,7 +28,7 @@ struct CLIError: Error, CustomStringConvertible {
     var description: String { message }
 }
 
-private enum CLISocketEnvironment {
+enum CLISocketEnvironment {
     static func socketPath(in environment: [String: String]) throws -> String? {
         let socketPath = normalized(environment["CMUX_SOCKET_PATH"])
         let legacySocketPath = normalized(environment["CMUX_SOCKET"])

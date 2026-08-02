@@ -620,16 +620,12 @@ if [[ "$CMUX_CLAUDE_HOOKS_DISABLED" == "1" ]]; then
     cmux_claude_wrapper_exec_resolved_claude "$REAL_CLAUDE" "$@"
 fi
 
-<<<<<<< HEAD:Resources/bin/zerocmux-claude-wrapper
 if [[ "$IN_CMUX" == "0" ]] || ! cmux_socket_available; then
     # In zerocmux-launched shells, preserve old behavior and always clear nested
     # Claude session markers, even when we must pass through due to stale socket.
     if [[ "$IN_CMUX" == "1" ]]; then
         clear_inherited_claude_session_identity_env
     fi
-=======
-if [[ "$IN_CMUX" == "0" ]]; then
->>>>>>> upstream/main:Resources/bin/cmux-claude-wrapper
     clear_inherited_claude_auth_selection_env
     REAL_CLAUDE="$(find_real_claude)" || { echo "Error: claude not found in PATH" >&2; exit 127; }
     exec_real_claude_passthrough "$@"
@@ -899,10 +895,6 @@ fi
 
 # For an explicit `--resume <id>`, point CLAUDE_CONFIG_DIR at the config root that
 # actually holds the transcript so an inherited/foreign config dir cannot turn the
-<<<<<<< HEAD:Resources/bin/zerocmux-claude-wrapper
-# resume into "No conversation found". https://github.com/kernelalex/zerocmux/issues/6194
-reconcile_claude_config_dir_for_resume "$(extract_claude_resume_session_id "$@")"
-=======
 # resume into "No conversation found". https://github.com/manaflow-ai/cmux/issues/6194
 reconcile_claude_config_dir_for_resume "$cmux_claude_resume_sid"
 if [[ -n "$cmux_claude_resume_sid" ]]; then
@@ -910,7 +902,6 @@ if [[ -n "$cmux_claude_resume_sid" ]]; then
 else
     unset CMUX_AGENT_RESUME_LAUNCH
 fi
->>>>>>> upstream/main:Resources/bin/cmux-claude-wrapper
 
 # Export the wrapper's PID. Because we exec claude below, this PID becomes
 # the actual claude process PID, which hooks use for stale-session detection.

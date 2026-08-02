@@ -58,7 +58,7 @@ extension ContentView {
         case .cloudVMLoading:
             return ["cloud", "vm", "loading"]
         case .mobilePairing:
-            return ContentView.commandPaletteMobileConnectKeywords
+            return ["mobile", "pairing"]
         case .accountSignIn:
             return ["account", "auth", "profile", "sign in"]
         }

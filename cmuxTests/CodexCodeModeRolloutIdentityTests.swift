@@ -133,41 +133,6 @@ struct CodexCodeModeRolloutIdentityTests {
         ) == nil)
     }
 
-    private func observedSession(
-        openRollouts: [String],
-        preferredSessionID: String?
-    ) -> ObservedAgentSession? {
-        let workspaceID = UUID()
-        let surfaceID = UUID()
-        let snapshot = CmuxTopProcessSnapshot(
-            processes: [CmuxTopProcessInfo(
-                pid: 202,
-                parentPID: 1,
-                name: "codex",
-                path: "/opt/homebrew/bin/codex",
-                ttyDevice: nil,
-                cmuxWorkspaceID: workspaceID,
-                cmuxSurfaceID: surfaceID,
-                cmuxAttributionReason: "test",
-                processGroupID: 202,
-                terminalProcessGroupID: 202,
-                cpuPercent: 0,
-                residentBytes: 1,
-                virtualBytes: 1,
-                threadCount: 1
-            )],
-            sampledAt: Date(timeIntervalSince1970: 200),
-            includesProcessDetails: true
-        )
-        let preferred = preferredSessionID.map { [surfaceID.uuidString: $0] } ?? [:]
-        return AgentChatSessionRegistry.scanObservedAgentSessions(
-            in: snapshot,
-            preferredCodexSessionIDBySurfaceID: preferred,
-            processArgumentsAndEnvironment: { _ in nil },
-            codexRolloutPaths: { pid in pid == 202 ? openRollouts : [] }
-        ).first
-    }
-
     private func makeFixtureDirectory() throws -> (root: URL, rollouts: URL) {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("cmux-codex-code-mode-\(UUID().uuidString)", isDirectory: true)

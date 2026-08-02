@@ -188,21 +188,11 @@ struct PanelContentView: View {
                 CloudVMLoadingPanelView(panel: loadingPanel)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-        case .mobilePairing:
-            if panel is MobilePairingPanel {
-                MobilePairingPanelView(
-                    appearance: appearance,
-                    onRequestPanelFocus: onRequestPanelFocus
-                )
-            }
-        case .accountSignIn:
-            if let accountSignInPanel = panel as? AccountSignInPanel {
-                AccountSignInPanelView(
-                    panel: accountSignInPanel,
-                    appearance: appearance,
-                    onRequestPanelFocus: onRequestPanelFocus
-                )
-            }
+        case .mobilePairing, .accountSignIn:
+            // zerocmux: mobile pairing and hosted sign-in are removed. The panel
+            // kinds survive only so restored upstream sessions decode; nothing
+            // can create these panels, and they render empty if one appears.
+            EmptyView()
         }
     }
 

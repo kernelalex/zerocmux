@@ -4,20 +4,11 @@
 # When running inside a zerocmux terminal (CMUX_SURFACE_ID is set), this wrapper
 # makes `codex` carry zerocmux's hooks for THIS invocation only (nothing is written
 # to ~/.codex), so Codex's own SessionStart/UserPromptSubmit/Stop/PreToolUse/
-<<<<<<< HEAD:Resources/bin/zerocmux-codex-wrapper
 # PostToolUse/PermissionRequest fire back into zerocmux with Codex's real session_id.
-# It also fires a best-effort one-way `zerocmux hooks codex session-start` BEFORE
-# exec so a session is detected at launch even if Codex's own SessionStart is
-# delayed; the registry dedups by session id so the two are idempotent.
-#
-# Outside zerocmux (no CMUX_SURFACE_ID / live socket), or when the user opts out
-=======
-# PostToolUse/PermissionRequest fire back into cmux with Codex's real session_id.
 # Those hook payloads are the source of truth for session identity; the wrapper
 # never predicts fresh-vs-resume state from Codex's command-line syntax.
 #
-# Outside cmux (no CMUX_SURFACE_ID), or when the user opts out
->>>>>>> upstream/main:Resources/bin/cmux-codex-wrapper
+# Outside zerocmux (no CMUX_SURFACE_ID), or when the user opts out
 # (CMUX_CODEX_HOOKS_DISABLED=1), the wrapper does NOTHING but exec the real
 # codex. Every failure path below also execs the real codex, so installing the
 # wrapper can never break `codex`.
@@ -76,22 +67,6 @@ find_real_codex() {
     return 1
 }
 
-<<<<<<< HEAD:Resources/bin/zerocmux-codex-wrapper
-# Return 0 only when CMUX_SOCKET_PATH points to a live zerocmux socket.
-cmux_socket_available() {
-    local socket="${CMUX_SOCKET_PATH:-}"
-    [[ -n "$socket" && -S "$socket" ]] || return 1
-
-    local cmux_bin
-    cmux_bin="$(resolve_hook_cmux_bin)"
-    [[ -n "$cmux_bin" ]] || return 1
-
-    CMUXTERM_CLI_RESPONSE_TIMEOUT_SEC=0.75 \
-        "$cmux_bin" --socket "$socket" ping >/dev/null 2>&1
-}
-
-=======
->>>>>>> upstream/main:Resources/bin/cmux-codex-wrapper
 resolve_hook_cmux_bin() {
     local self_dir bundled_cli
     bundled_cli="${CMUX_BUNDLED_CLI_PATH:-}"
@@ -116,13 +91,8 @@ resolve_hook_cmux_bin() {
     printf '%s' "zerocmux"
 }
 
-<<<<<<< HEAD:Resources/bin/zerocmux-codex-wrapper
-# The interactive session, `exec`/`e`, and `resume` entrypoints all START a
-# Codex session, so all three must receive zerocmux's hook injection; everything
-=======
 # The interactive session, `exec`/`e`, `resume`, and `fork` entrypoints all START
-# a Codex session, so all four must receive cmux's hook injection; everything
->>>>>>> upstream/main:Resources/bin/cmux-codex-wrapper
+# a Codex session, so all four must receive zerocmux's hook injection; everything
 # else (review, login, mcp, doctor, --help, --version, ...) passes through
 # untouched. `resume` is critical: zerocmux auto-resumes a session as `codex resume
 # <id>` after a Mac relaunch, and without hooks the resumed process fires no
@@ -243,10 +213,6 @@ exec_real_codex_passthrough() {
     exec "$REAL_CODEX" "$@"
 }
 
-<<<<<<< HEAD:Resources/bin/zerocmux-codex-wrapper
-# Opt-out, outside zerocmux, or stale/dead socket: pass straight through.
-=======
->>>>>>> upstream/main:Resources/bin/cmux-codex-wrapper
 if [[ "${CMUX_CODEX_HOOKS_DISABLED:-}" == "1" ]]; then
     exec_real_codex_passthrough "$@"
 fi
@@ -279,43 +245,8 @@ export CMUX_AGENT_LAUNCH_CWD="$PWD"
     [[ -n "$cmux_codex_argv_b64" ]] && export CMUX_AGENT_LAUNCH_ARGV_B64="$cmux_codex_argv_b64"
 }
 
-<<<<<<< HEAD:Resources/bin/zerocmux-codex-wrapper
-# On a FRESH launch, no wrapper-fired session-start: codex's own injected
-# SessionStart hook (below) fires within ~1s carrying codex's REAL session_id, so
-# it is the single authoritative signal. A pre-exec wrapper-fired session-start
-# there had no session id and minted a junk `fallback-*` record (a phantom in the
-# GUI), so it stays omitted for fresh launches.
-#
-# RESUME is different: codex does NOT fire SessionStart when resuming, so the
-# injected hooks alone would never re-bind the session (its only pid-refreshing
-# event never arrives), leaving it stuck on the dead pre-relaunch pid -> `.ended`
-# -> read-only with no input bar, with no way out (you cannot submit a prompt
-# from a GUI that has no composer). The wrapper has the resumed id (from argv) and
-# the new live pid ($$, exported as CMUX_CODEX_PID above), so it fires the
-# session-start ITSELF. The handler binds surface/workspace/cwd from the zerocmux env
-# and pid from CMUX_CODEX_PID, re-binding the resumed session to its live pid and
-# flipping it back to idle/editable. Fire-and-forget (backgrounded + disowned) so
-# it never blocks the launch; best-effort so a failure can never break `codex`.
-cmux_codex_resume_sid="$(cmux_codex_resume_session_id "$@")"
-if [[ -n "$cmux_codex_resume_sid" \
-      && -n "$CMUX_CODEX_HOOK_CMUX_BIN" && -x "$CMUX_CODEX_HOOK_CMUX_BIN" ]]; then
-    cmux_codex_resume_payload="{\"session_id\":\"$cmux_codex_resume_sid\",\"cwd\":\"$PWD\"}"
-    if [[ -n "${CMUX_SOCKET_PATH:-}" ]]; then
-        ( printf '%s' "$cmux_codex_resume_payload" \
-            | nohup "$CMUX_CODEX_HOOK_CMUX_BIN" --socket "$CMUX_SOCKET_PATH" hooks codex session-start >/dev/null 2>&1 ) &
-    else
-        ( printf '%s' "$cmux_codex_resume_payload" \
-            | nohup "$CMUX_CODEX_HOOK_CMUX_BIN" hooks codex session-start >/dev/null 2>&1 ) &
-    fi
-    disown 2>/dev/null || true
-fi
-
-# Build the per-invocation [hooks] injection. The zerocmux CLI emits the exact arg
-# list (NUL-separated) that enables hooks and injects zerocmux's FIRE-AND-FORGET hook
-=======
 # Build the per-invocation [hooks] injection. The cmux CLI emits the exact arg
-# list (NUL-separated) that enables hooks and injects cmux's FIRE-AND-FORGET hook
->>>>>>> upstream/main:Resources/bin/cmux-codex-wrapper
+# list (NUL-separated) that enables hooks and injects zerocmux's FIRE-AND-FORGET hook
 # command for each event. Fire-and-forget is critical: codex runs hooks
 # synchronously and BLOCKS until they return, so a synchronous `zerocmux hooks codex
 # <sub>` made every launch hang ~35s on "Running SessionStart hook". The emitted

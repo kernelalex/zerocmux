@@ -60,43 +60,6 @@ import Testing
         await classifier.complete()
     }
 
-    @Test func invalidMobileRequestDoesNotConsumeOperationID() async {
-        let suiteName = "WorkspaceCreateReviewRegressionTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        let cache = TerminalController.WorkspaceCreateIdempotencyCache(
-            capacity: 16,
-            defaults: defaults,
-            persistenceKey: "completed"
-        )
-        let manager = TabManager()
-        let baselineCount = manager.tabs.count
-        let operationID = UUID()
-
-        let invalid = await TerminalController.shared.v2MobileWorkspaceCreate(
-            params: [
-                "operation_id": operationID.uuidString,
-                "layout": Date(),
-            ],
-            tabManager: manager,
-            idempotencyCache: cache
-        )
-
-        #expect(Self.errorCode(invalid) == "invalid_params")
-        #expect(cache.containsCompletedOperation(operationID) == false)
-        #expect(manager.tabs.count == baselineCount)
-
-        let retry = await TerminalController.shared.v2MobileWorkspaceCreate(
-            params: ["operation_id": operationID.uuidString],
-            tabManager: manager,
-            idempotencyCache: cache
-        )
-
-        #expect(Self.errorCode(retry) == nil)
-        #expect(cache.containsCompletedOperation(operationID))
-        #expect(manager.tabs.count == baselineCount + 1)
-    }
-
     private static func errorCode(_ result: TerminalController.V2CallResult) -> String? {
         guard case let .err(code, _, _) = result else { return nil }
         return code

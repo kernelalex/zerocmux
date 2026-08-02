@@ -287,7 +287,7 @@ extension SessionRemoteWorkspaceSnapshot {
         )
         let failureMessage = String(
             localized: "cli.ssh.restore.lifecycleUnavailable",
-            defaultValue: "[cmux] SSH restore stopped because cmux could not register the connection lifecycle. Reopen this remote workspace to reconnect."
+            defaultValue: "[zerocmux] SSH restore stopped because zerocmux could not register the connection lifecycle. Reopen this remote workspace to reconnect."
         )
         let failureScript = "printf '%s\\n' \(Self.shellQuote(failureMessage)) >&2; exit 1"
         guard let staging = RemoteBootstrapStagingCommandBuilder(
@@ -418,19 +418,19 @@ extension SessionRemoteWorkspaceSnapshot {
             sshFallbackCommand: sshFallbackCommand,
             localMoshMissingMessage: String(
                 localized: "cli.ssh.mosh.localMissing",
-                defaultValue: "[cmux] Mosh is not installed locally; continuing over SSH."
+                defaultValue: "[zerocmux] Mosh is not installed locally; continuing over SSH."
             ),
             localMoshUnsupportedMessage: String(
                 localized: "cli.ssh.mosh.localUnsupported",
-                defaultValue: "[cmux] The local Mosh client lacks required SSH integration; continuing over SSH."
+                defaultValue: "[zerocmux] The local Mosh client lacks required SSH integration; continuing over SSH."
             ),
             remoteMoshMissingMessage: String(
                 localized: "cli.ssh.mosh.remoteMissing",
-                defaultValue: "[cmux] mosh-server is not installed on the remote host; continuing over SSH."
+                defaultValue: "[zerocmux] mosh-server is not installed on the remote host; continuing over SSH."
             ),
             remoteMoshProbeFailedMessage: String(
                 localized: "cli.ssh.mosh.probeFailed",
-                defaultValue: "[cmux] Could not verify remote Mosh support; continuing over SSH."
+                defaultValue: "[zerocmux] Could not verify remote Mosh support; continuing over SSH."
             )
         ).command()
     }

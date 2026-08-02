@@ -318,16 +318,12 @@ _cmux_path_prepend_unique_directory() {
 _cmux_install_cli_command_shim() {
     local command_name="$1"
     local wrapper_path="$2"
-<<<<<<< HEAD:Resources/shell-integration/zerocmux-zsh-integration.zsh
-    local shim_root="${TMPDIR:-/tmp}/zerocmux-cli-shims/${CMUX_SURFACE_ID:-$$}"
-=======
     local surface_component="${CMUX_SURFACE_ID:-$$}"
     local shim_root="${CMUX_CLAUDE_WRAPPER_SHIM_ROOT:-}"
     local shim_parent="${shim_root%/*}"
     if [[ -z "$shim_root" || "${shim_root##*/}" != "$surface_component" || "${shim_parent##*/}" != "zerocmux-cli-shims" ]]; then
         shim_root="${TMPDIR:-/tmp}/zerocmux-cli-shims/$surface_component"
     fi
->>>>>>> upstream/main:Resources/shell-integration/cmux-zsh-integration.zsh
     local shim_path="$shim_root/$command_name"
     local escaped_wrapper="$wrapper_path"
 

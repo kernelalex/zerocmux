@@ -444,13 +444,9 @@ extension DockSplitStore {
             nil
         }
         guard let session else { return }
-        AgentChatTranscriptService.recordResumeIntent(
-            sessionID: session.id,
-            source: session.source,
-            surfaceID: panelId.uuidString,
-            workspaceID: workspaceId.uuidString,
-            workingDirectory: workingDirectory
-        )
+        // zerocmux: the mobile agent-chat transcript service is removed; resume
+        // intents are not mirrored to a phone transcript.
+        _ = session
 #if DEBUG
         cmuxDebugLog("session.restore.dock.resumeBinding workspace=\(workspaceId.uuidString.prefix(8)) surface=\(panelId.uuidString.prefix(8)) source=\(session.source) session=\(session.id.prefix(8))")
 #endif

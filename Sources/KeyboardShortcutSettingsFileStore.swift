@@ -79,6 +79,7 @@ final class CmuxSettingsFileStore {
         fileManager: FileManager = .default,
         notificationCenter: NotificationCenter = .default,
         passwordStore: SocketControlPasswordStore = SocketControlPasswordStore(),
+        userDefaults: UserDefaults = .standard,
         startWatching: Bool = true,
         onWatchedFileReload: @escaping @MainActor @Sendable (String) -> Void = { _ in }
     ) {
@@ -88,6 +89,7 @@ final class CmuxSettingsFileStore {
         self.fileManager = fileManager
         self.notificationCenter = notificationCenter
         self.passwordStore = passwordStore
+        self.userDefaults = userDefaults
         self.onWatchedFileReload = onWatchedFileReload
         importedManagedDefaults = Self.loadImportedManagedDefaults()
         bootstrapPrimaryTemplateIfNeeded()
@@ -375,9 +377,6 @@ final class CmuxSettingsFileStore {
         }
         if let browserSection = root["browser"] as? [String: Any] {
             parseBrowserSection(browserSection, sourcePath: sourcePath, snapshot: &snapshot)
-        }
-        if let mobileSection = root["mobile"] as? [String: Any] {
-            parseMobileSection(mobileSection, sourcePath: sourcePath, snapshot: &snapshot)
         }
         if let markdownSection = root["markdown"] as? [String: Any] {
             parseMarkdownSection(markdownSection, sourcePath: sourcePath, snapshot: &snapshot)

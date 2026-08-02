@@ -3122,7 +3122,6 @@ private struct SidebarFooterIconBalanceStrip: View {
                     .compositingGroup()
                     .blur(radius: CGFloat(blurRadius))
             }
-            ProBadgeLabel(style: .textPro)
         }
         .padding(.horizontal, 8)
         .frame(maxWidth: .infinity, minHeight: 34, alignment: .leading)
@@ -3158,17 +3157,12 @@ private struct SidebarFooterProfileIconReference: View {
     let size: Double
 
     var body: some View {
+        // zerocmux: the hosted-account avatar view is removed; render a plain
+        // placeholder glyph so the balance lab still previews the footer row.
         let showsProfilePicture =
             SidebarFooterProfileDisplayDebugChoice(rawValue: profileDisplay) == .picture
-        SidebarAccountAvatar(
-            avatarURL: nil,
-            displayName: "cmux",
-            email: "",
-            isSignedIn: showsProfilePicture,
-            size: showsProfilePicture
-                ? SidebarFooterButtonMetrics.profilePictureSize
-                : CGFloat(size)
-        )
+        Image(systemName: showsProfilePicture ? "person.crop.circle.fill" : "person.crop.circle")
+            .font(.system(size: CGFloat(size), weight: .regular))
             .frame(width: 22, height: 22)
     }
 }

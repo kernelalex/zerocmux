@@ -444,10 +444,6 @@ final class TerminalNotificationStore: ObservableObject {
         notificationFeedHistory = NotificationFeedHistoryStore(
             fileURL: NotificationFeedHistoryStore.defaultFileURL()
         ) { revision in
-            MobileHostService.emitEvent(
-                topic: Self.feedChangedEventTopic,
-                payload: ["revision": revision]
-            )
         }
         indexes = Self.buildIndexes(for: notifications)
         userDefaultsObserver = NotificationCenter.default.addObserver(
@@ -2242,10 +2238,6 @@ final class TerminalNotificationStore: ObservableObject {
         TerminalMutationBus.shared.discardPendingNotifications()
         self.notifications = notifications
         notificationFeedHistory = NotificationFeedHistoryStore(fileURL: nil) { revision in
-            MobileHostService.emitEvent(
-                topic: Self.feedChangedEventTopic,
-                payload: ["revision": revision]
-            )
         }
         clearWorkspaceManualUnread()
         clearPanelDerivedWorkspaceUnread()

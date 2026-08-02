@@ -105,32 +105,6 @@ import Testing
         #expect(await second.value == .valid("/tmp/shared"))
     }
 
-    @Test func validationTimeoutCreatesNoWorkspaceAndMapsToRequestTimeout() async {
-        let probe = ControlledDirectoryProbe()
-        let deadlines = ControlledValidationDeadlines()
-        let service = Self.service(probe: probe, deadlines: deadlines)
-        let manager = TabManager()
-        let baselineIDs = Set(manager.tabs.map(\.id))
-        let create = Task { @MainActor in
-            await TerminalController.shared.v2MobileWorkspaceCreate(
-                params: ["working_directory": "/tmp/wedged"],
-                workingDirectoryValidator: { rawValue, isProvided in
-                    await service.validate(rawValue: rawValue, isProvided: isProvided)
-                },
-                tabManager: manager
-            )
-        }
-        await probe.waitForCount(1)
-        await deadlines.waitForCount(1)
-
-        await deadlines.fireAll()
-        let result = await create.value
-
-        #expect(Self.errorCode(from: result) == "request_timeout")
-        #expect(Set(manager.tabs.map(\.id)) == baselineIDs)
-        await probe.complete(path: "/tmp/wedged", isDirectory: true)
-    }
-
     @Test func oneWedgedProbeLeavesSecondSlotAvailableAndSamePathRemainsCoalesced() async {
         let probe = ControlledDirectoryProbe()
         let deadlines = ControlledValidationDeadlines()

@@ -1,6 +1,7 @@
 import CmuxTerminal
 import CmuxRemoteSession
 import Foundation
+import GhosttyKit
 
 @MainActor
 extension RemoteTmuxSessionMirror {
@@ -208,12 +209,13 @@ extension RemoteTmuxSessionMirror {
         paneId: Int,
         target: (columns: Int, rows: Int)
     ) -> Bool {
-        guard let frame = terminalSurface(forPane: paneId)?.mobileRenderGridFrame(
-            stateSeq: 0,
-            scrollbackLines: 0,
-            includeTheme: false
-        )?.frame else { return false }
-        return frame.columns >= target.columns && frame.rows >= target.rows
+        // zerocmux: the mobile render-grid exporter is removed; read the
+        // authoritative grid geometry straight from libghostty instead.
+        guard let runtimeSurface = terminalSurface(forPane: paneId)?
+            .liveSurfaceForGhosttyAccess(reason: "remoteTmux.seedGridReady") else { return false }
+        var metrics = ghostty_surface_grid_metrics_s()
+        guard ghostty_surface_grid_metrics(runtimeSurface, &metrics) else { return false }
+        return Int(metrics.columns) >= target.columns && Int(metrics.rows) >= target.rows
     }
 
     private func drainPendingPaneSeedDelivery(paneId: Int) {

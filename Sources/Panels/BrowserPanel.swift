@@ -1,5 +1,4 @@
 import Foundation
-import CMUXMobileCore
 import CmuxCore
 import CmuxBrowser
 import CmuxFoundation
@@ -2748,14 +2747,6 @@ final class BrowserPanel: Panel, ObservableObject {
     var browserAutomationStyleScriptCount = 0
     var webViewDidRequestClose: (() -> Void)?
     var openAppLinkInBrowserSplit: ((URL) -> Bool)?
-    var mobileBrowserStreamSignalHandlers: [UUID: (MobileBrowserPanelNativeSignal) -> Void] = [:]
-    var mobileBrowserStreamMessageHandler: MobileBrowserDirtyMessageHandler?
-    var mobileBrowserStreamScriptInstanceID: UUID?
-    var mobileBrowserStreamRenderHost: BrowserOffscreenRenderHost?
-    var mobileBrowserStreamPreviousViewport: BrowserViewport?
-    var mobileBrowserStreamPreviousViewportWasCaptured = false
-    var mobileBrowserStreamViewport: MobileBrowserViewport?
-    let mobileBrowserDialogBroker: MobileBrowserDialogBroker
 
     /// Monotonic identity for the current WKWebView instance.
     /// Incremented whenever we replace the underlying WKWebView after a process crash.
@@ -2795,7 +2786,6 @@ final class BrowserPanel: Panel, ObservableObject {
         didSet {
             guard oldValue != currentURL else { return }
             applyConfiguredWebViewBackground()
-            mobileBrowserStreamStateDidChange(markDirty: true)
         }
     }
 
@@ -2865,7 +2855,6 @@ final class BrowserPanel: Panel, ObservableObject {
     @Published private(set) var pageTitle: String = "" {
         didSet {
             guard oldValue != pageTitle else { return }
-            mobileBrowserStreamStateDidChange(markDirty: true)
         }
     }
 
@@ -2876,7 +2865,6 @@ final class BrowserPanel: Panel, ObservableObject {
     @Published private(set) var isLoading: Bool = false {
         didSet {
             guard oldValue != isLoading else { return }
-            mobileBrowserStreamStateDidChange(markDirty: true)
         }
     }
 
@@ -2899,7 +2887,6 @@ final class BrowserPanel: Panel, ObservableObject {
     @Published private(set) var canGoBack: Bool = false {
         didSet {
             guard oldValue != canGoBack else { return }
-            mobileBrowserStreamStateDidChange()
         }
     }
 
@@ -2907,7 +2894,6 @@ final class BrowserPanel: Panel, ObservableObject {
     @Published private(set) var canGoForward: Bool = false {
         didSet {
             guard oldValue != canGoForward else { return }
-            mobileBrowserStreamStateDidChange()
         }
     }
 
@@ -2936,7 +2922,6 @@ final class BrowserPanel: Panel, ObservableObject {
     @Published private(set) var estimatedProgress: Double = 0.0 {
         didSet {
             guard oldValue != estimatedProgress else { return }
-            mobileBrowserStreamStateDidChange()
         }
     }
 
@@ -3792,7 +3777,6 @@ final class BrowserPanel: Panel, ObservableObject {
         setupMediaPlaybackMessageHandler(for: webView)
         webAuthnCoordinator.install(on: webView)
         applyMuteState(to: webView, reason: "bindWebView")
-        mobileBrowserWebViewDidBind()
     }
     private func setupSSLTrustBypassMessageHandler(for webView: WKWebView) {
         let handler = BrowserSSLTrustBypassMessageHandler(
@@ -3878,7 +3862,6 @@ final class BrowserPanel: Panel, ObservableObject {
                     boundHistoryStore.recordVisit(url: webView.url, title: webView.title)
                     self.refreshFavicon(from: webView)
                 }
-                self.applyCurrentAppWebTheme(to: webView)
                 // Keep find-in-page open through load completion and refresh matches for the new DOM.
                 self.restoreFindStateAfterNavigation(replaySearch: true)
             }
@@ -4124,7 +4107,6 @@ final class BrowserPanel: Panel, ObservableObject {
         // per process, before any setting is read below or by the SwiftUI view.
         Self.bootstrapBrowserDefaultsIfNeeded()
         self.id = UUID()
-        self.mobileBrowserDialogBroker = MobileBrowserDialogBroker(panelID: self.id.uuidString)
         self.workspaceId = workspaceId
         let requestedProfileID = profileID ?? BrowserProfileStore.shared.effectiveLastUsedProfileID
         let resolvedProfileID = BrowserProfileStore.shared.profileDefinition(id: requestedProfileID) != nil
@@ -4164,17 +4146,6 @@ final class BrowserPanel: Panel, ObservableObject {
         )
         self.webView = webView
         self.insecureHTTPAlertFactory = { NSAlert() }
-        mobileBrowserDialogBroker.onPresented = { [weak self] dialog in
-            guard let self, !self.mobileBrowserStreamSignalHandlers.isEmpty else { return }
-            self.publishMobileBrowserStreamSignal(.dialog(dialog))
-        }
-        mobileBrowserDialogBroker.onResolved = { [weak self] resolved in
-            guard let self else { return }
-            if !self.mobileBrowserStreamSignalHandlers.isEmpty {
-                self.publishMobileBrowserStreamSignal(.dialogResolved(resolved))
-                self.publishMobileBrowserStreamSignal(.dirty(editableFocused: nil))
-            }
-        }
         hiddenWebViewDiscardManager.delegate = self
         applyProxyConfigurationIfAvailable()
         BrowserProfileStore.shared.noteUsed(resolvedProfileID)
@@ -5242,8 +5213,6 @@ final class BrowserPanel: Panel, ObservableObject {
             .sink { [weak self] notification in
                 guard let self else { return }
                 self.applyWebViewBackground(color: GhosttyBackgroundTheme.color(from: notification))
-                guard self.supportsAppWebTheme(self.webView) else { return }
-                self.applyAppWebTheme(AppWebThemeSnapshot.current(notification: notification), to: self.webView)
             }
             .store(in: &webViewCancellables)
 
@@ -5256,28 +5225,10 @@ final class BrowserPanel: Panel, ObservableObject {
         // Apply the configured background for the freshly bound webview (covers
         // the initial bind and every post-crash replacement).
         applyConfiguredWebViewBackground()
-        applyCurrentAppWebTheme(to: webView)
     }
 
-    private func applyCurrentAppWebTheme(to webView: WKWebView) {
-        guard supportsAppWebTheme(webView) else { return }
-        applyAppWebTheme(AppWebThemeSnapshot.current(), to: webView)
-    }
 
-    private func supportsAppWebTheme(_ webView: WKWebView) -> Bool {
-        BrowserAppTheme.supportsAppSurface(
-            url: webView.url,
-            trustedOrigin: AuthEnvironment.appWebOrigin
-        )
-    }
 
-    private func applyAppWebTheme(_ theme: AppWebThemeSnapshot, to webView: WKWebView) {
-        let browserTheme = theme.browserTheme
-        guard let script = browserTheme.applyingJavaScript() else {
-            return
-        }
-        webView.evaluateJavaScript(script, completionHandler: nil)
-    }
 
     /// Configures the live webview's background for the current Ghostty theme.
     private func applyConfiguredWebViewBackground() {
@@ -5584,9 +5535,6 @@ final class BrowserPanel: Panel, ObservableObject {
         isClosingWebViewLifecycle = true
         automationNavigationCoordinator.invalidate()
         navigationDelegate?.cancelPendingAuthenticationPrompts()
-        mobileBrowserDialogBroker.resolveAll()
-        clearMobileStreamViewport()
-        publishMobileBrowserStreamSignal(.closed)
         automationDocumentReadiness.invalidate()
         automationWatchdog.invalidate()
         refreshWebViewLifecycleState()
@@ -6262,41 +6210,15 @@ final class BrowserPanel: Panel, ObservableObject {
         alert.showsSuppressionButton = true
         alert.suppressionButton?.title = String(localized: "browser.alwaysAllowHost", defaultValue: "Always allow this host in zerocmux")
 
-        let buttons = [
-            MobileBrowserDialogButton(
-                id: "open_external",
-                label: alert.buttons[0].title,
-                role: .default
-            ),
-            MobileBrowserDialogButton(
-                id: "proceed",
-                label: alert.buttons[1].title,
-                role: .destructive
-            ),
-            MobileBrowserDialogButton(
-                id: "cancel",
-                label: alert.buttons[2].title,
-                role: .cancel
-            ),
-        ]
-        let dialog = mobileBrowserDialogBroker.begin(
-            kind: .insecureHTTP,
-            title: alert.messageText,
-            message: alert.informativeText,
-            host: host,
-            buttons: buttons,
-            textField: nil,
-            informational: false,
-            resolve: { [weak self] buttonID, _ in
-                let response: NSApplication.ModalResponse
-                switch buttonID {
-                case "open_external": response = .alertFirstButtonReturn
-                case "proceed": response = .alertSecondButtonReturn
-                default: response = .alertThirdButtonReturn
-                }
+        // zerocmux: no mobile dialog broker; present the Mac alert directly.
+        _ = presentBrowserAlert(
+            alert,
+            in: webView,
+            windowProvider: insecureHTTPAlertWindowProvider,
+            completion: { [weak self] response in
                 self?.handleInsecureHTTPAlertResponse(
                     response,
-                    alert: nil,
+                    alert: alert,
                     host: host,
                     request: request,
                     url: url,
@@ -6305,35 +6227,12 @@ final class BrowserPanel: Panel, ObservableObject {
                     onResolution: onResolution,
                     onNavigationStarted: onNavigationStarted
                 )
-            }
-        )
-        let dismiss = presentBrowserAlert(
-            alert,
-            in: webView,
-            windowProvider: insecureHTTPAlertWindowProvider,
-            completion: { [weak self] response in
-                _ = self?.mobileBrowserDialogBroker.resolveFromMac(dialogID: dialog.dialogID) {
-                    self?.handleInsecureHTTPAlertResponse(
-                        response,
-                        alert: alert,
-                        host: host,
-                        request: request,
-                        url: url,
-                        intent: intent,
-                        recordTypedNavigation: recordTypedNavigation,
-                        onResolution: onResolution,
-                        onNavigationStarted: onNavigationStarted
-                    )
-                }
             },
-            cancel: { [weak self] in
-                _ = self?.mobileBrowserDialogBroker.resolveFromMac(dialogID: dialog.dialogID) {
-                    onNavigationStarted?(nil)
-                    onResolution(.cancelled)
-                }
+            cancel: {
+                onNavigationStarted?(nil)
+                onResolution(.cancelled)
             }
         )
-        mobileBrowserDialogBroker.attachDismissal(dialogID: dialog.dialogID, dismissal: dismiss)
     }
 
     func handleInsecureHTTPAlertResponse(
@@ -6425,7 +6324,7 @@ extension BrowserPanel: BrowserHiddenWebViewDiscardManagerDelegate {
             isReactGrabActive: isReactGrabActive,
             isDesignModeActive: designModeController.protectsFromDiscard,
             isVisualAutomationCaptureActive: activeVisualAutomationCaptureCount > 0,
-            isMobileBrowserStreamActive: !mobileBrowserStreamSignalHandlers.isEmpty,
+            isMobileBrowserStreamActive: false,
             hasPopups: !popupControllers.isEmpty,
             isCapturingMedia: webView.cameraCaptureState != .none || webView.microphoneCaptureState != .none,
             isPlayingMedia: isPlayingMedia
@@ -8930,19 +8829,6 @@ private class BrowserUIDelegate: BrowserPDFPreviewActionUIDelegate {
             "windowFeatures={\(windowFeaturesSummary)}"
         )
 #endif
-        // Auth-callback-shaped URLs never get the external-app prompt from the
-        // popup path: the only legitimate producer is the app's own
-        // after-sign-in page, which the main navigation delegate consumes.
-        if let url = navigationAction.request.url,
-           BrowserAuthCallbackNavigationPolicy.shouldBlockExternalNavigation(url) {
-#if DEBUG
-            cmuxDebugLog(
-                "browser.nav.createWebView kind=blockUntrustedAuthCallback scheme=\(url.scheme ?? "nil")"
-            )
-#endif
-            return nil
-        }
-
         // External URL schemes → hand off to macOS, don't create a popup
         if let url = navigationAction.request.url,
            browserShouldRouteExternalNavigation(url) {
@@ -8955,16 +8841,6 @@ private class BrowserUIDelegate: BrowserPDFPreviewActionUIDelegate {
                 },
                 presentAlert: presentAlert
             )
-            return nil
-        }
-
-        if owner?.mobileBrowserStreamSignalHandlers.isEmpty == false {
-            if let requestNavigation {
-                recordPDFPrintIntent?(navigationAction.request, navigationAction.sourceFrame)
-                requestNavigation(navigationAction.request, .currentTab)
-            } else {
-                browserLoadRequest(navigationAction.request, in: webView)
-            }
             return nil
         }
 
@@ -9050,27 +8926,8 @@ private class BrowserUIDelegate: BrowserPDFPreviewActionUIDelegate {
         panel.allowsMultipleSelection = parameters.allowsMultipleSelection
         panel.canChooseDirectories = parameters.allowsDirectories
         panel.canChooseFiles = true
-        guard let owner else {
-            panel.begin { result in
-                completionHandler(result == .OK ? panel.urls : nil)
-            }
-            return
-        }
-        let dialog = owner.beginInformationalMobileBrowserDialog(
-            kind: .fileUpload,
-            title: nil,
-            message: nil,
-            host: webView.url?.host,
-            cancelLabel: String(localized: "common.cancel", defaultValue: "Cancel"),
-            cancel: { completionHandler(nil) }
-        )
-        owner.mobileBrowserDialogBroker.attachDismissal(dialogID: dialog.dialogID) {
-            panel.cancel(nil)
-        }
         panel.begin { result in
-            _ = owner.resolveMobileBrowserDialogFromMac(dialog) {
-                completionHandler(result == .OK ? panel.urls : nil)
-            }
+            completionHandler(result == .OK ? panel.urls : nil)
         }
     }
 
@@ -9081,35 +8938,7 @@ private class BrowserUIDelegate: BrowserPDFPreviewActionUIDelegate {
         type: WKMediaCaptureType,
         decisionHandler: @escaping (WKPermissionDecision) -> Void
     ) {
-        guard let owner else {
-            decisionHandler(.prompt)
-            return
-        }
-        let allowLabel = String(localized: "common.allow", defaultValue: "Allow")
-        let cancelLabel = String(localized: "common.cancel", defaultValue: "Cancel")
-        let alert = NSAlert()
-        alert.alertStyle = .informational
-        alert.messageText = origin.host
-        alert.addButton(withTitle: allowLabel)
-        alert.addButton(withTitle: cancelLabel)
-        owner.presentMobileBrowserDialog(
-            kind: .mediaCapturePermission,
-            title: alert.messageText,
-            message: nil,
-            host: origin.host,
-            buttons: [
-                MobileBrowserDialogButton(id: "allow", label: allowLabel, role: .default),
-                MobileBrowserDialogButton(id: "cancel", label: cancelLabel, role: .cancel),
-            ],
-            textField: nil,
-            informational: false,
-            alert: alert,
-            response: { buttonID, _ in decisionHandler(buttonID == "allow" ? .grant : .deny) },
-            macResponse: { response in
-                (response == .alertFirstButtonReturn ? "allow" : "cancel", nil)
-            },
-            cancelButtonID: "cancel"
-        )
+        decisionHandler(.prompt)
     }
 
     func webView(
@@ -9122,24 +8951,7 @@ private class BrowserUIDelegate: BrowserPDFPreviewActionUIDelegate {
         alert.alertStyle = .informational
         alert.messageText = javaScriptDialogTitle(for: webView)
         alert.informativeText = message
-        let okLabel = String(localized: "common.ok", defaultValue: "OK")
-        alert.addButton(withTitle: okLabel)
-        if let owner {
-            owner.presentMobileBrowserDialog(
-                kind: .javaScriptAlert,
-                title: alert.messageText,
-                message: message,
-                host: webView.url?.host,
-                buttons: [MobileBrowserDialogButton(id: "ok", label: okLabel, role: .default)],
-                textField: nil,
-                informational: false,
-                alert: alert,
-                response: { _, _ in completionHandler() },
-                macResponse: { _ in ("ok", nil) },
-                cancelButtonID: "ok"
-            )
-            return
-        }
+        alert.addButton(withTitle: String(localized: "common.ok", defaultValue: "OK"))
         presentDialog(
             alert,
             for: webView,
@@ -9158,31 +8970,8 @@ private class BrowserUIDelegate: BrowserPDFPreviewActionUIDelegate {
         alert.alertStyle = .informational
         alert.messageText = javaScriptDialogTitle(for: webView)
         alert.informativeText = message
-        let okLabel = String(localized: "common.ok", defaultValue: "OK")
-        let cancelLabel = String(localized: "common.cancel", defaultValue: "Cancel")
-        alert.addButton(withTitle: okLabel)
-        alert.addButton(withTitle: cancelLabel)
-        if let owner {
-            owner.presentMobileBrowserDialog(
-                kind: .javaScriptConfirm,
-                title: alert.messageText,
-                message: message,
-                host: webView.url?.host,
-                buttons: [
-                    MobileBrowserDialogButton(id: "ok", label: okLabel, role: .default),
-                    MobileBrowserDialogButton(id: "cancel", label: cancelLabel, role: .cancel),
-                ],
-                textField: nil,
-                informational: false,
-                alert: alert,
-                response: { buttonID, _ in completionHandler(buttonID == "ok") },
-                macResponse: { response in
-                    (response == .alertFirstButtonReturn ? "ok" : "cancel", nil)
-                },
-                cancelButtonID: "cancel"
-            )
-            return
-        }
+        alert.addButton(withTitle: String(localized: "common.ok", defaultValue: "OK"))
+        alert.addButton(withTitle: String(localized: "common.cancel", defaultValue: "Cancel"))
         presentDialog(
             alert,
             for: webView,
@@ -9206,41 +8995,13 @@ private class BrowserUIDelegate: BrowserPDFPreviewActionUIDelegate {
         alert.alertStyle = .informational
         alert.messageText = javaScriptDialogTitle(for: webView)
         alert.informativeText = prompt
-        let okLabel = String(localized: "common.ok", defaultValue: "OK")
-        let cancelLabel = String(localized: "common.cancel", defaultValue: "Cancel")
-        alert.addButton(withTitle: okLabel)
-        alert.addButton(withTitle: cancelLabel)
+        alert.addButton(withTitle: String(localized: "common.ok", defaultValue: "OK"))
+        alert.addButton(withTitle: String(localized: "common.cancel", defaultValue: "Cancel"))
 
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
         field.font = GlobalFontMagnification.systemFont(ofSize: NSFont.systemFontSize)
         field.stringValue = defaultText ?? ""
         alert.accessoryView = field
-
-        if let owner {
-            owner.presentMobileBrowserDialog(
-                kind: .javaScriptPrompt,
-                title: alert.messageText,
-                message: prompt,
-                host: webView.url?.host,
-                buttons: [
-                    MobileBrowserDialogButton(id: "ok", label: okLabel, role: .default),
-                    MobileBrowserDialogButton(id: "cancel", label: cancelLabel, role: .cancel),
-                ],
-                textField: MobileBrowserDialogTextField(
-                    placeholder: field.placeholderString,
-                    initial: field.stringValue,
-                    secure: false
-                ),
-                informational: false,
-                alert: alert,
-                response: { buttonID, text in completionHandler(buttonID == "ok" ? (text ?? "") : nil) },
-                macResponse: { response in
-                    (response == .alertFirstButtonReturn ? "ok" : "cancel", field.stringValue)
-                },
-                cancelButtonID: "cancel"
-            )
-            return
-        }
 
         presentDialog(
             alert,
@@ -11985,3 +11746,11 @@ private final class BrowserOmnibarPageFocusAdapter: BrowserOmnibarScriptEvaluati
         }
     }
 }
+
+private func browserBareHostCandidate(_ lowercasedInput: String) -> String {
+    let end = lowercasedInput.firstIndex { character in
+        character == ":" || character == "/" || character == "?" || character == "#"
+    } ?? lowercasedInput.endIndex
+    return String(lowercasedInput[..<end])
+}
+

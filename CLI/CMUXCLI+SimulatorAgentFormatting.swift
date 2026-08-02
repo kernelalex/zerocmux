@@ -1,6 +1,20 @@
 import Foundation
 
 extension CMUXCLI {
+    /// Strip control characters (ANSI escapes, CR/LF, etc.) before printing a
+    /// registry-sourced string in a table. Replaces control chars with U+FFFD;
+    /// `--json` output is unaffected (it goes through the JSON encoder).
+    /// zerocmux: upstream defines this in CMUXCLI+Remotes.swift, which the fork
+    /// excludes with the hosted remotes surface; the simulator table is the
+    /// only remaining consumer.
+    static func sanitizeForTerminal(_ value: String) -> String {
+        String(value.unicodeScalars.map { scalar in
+            (scalar.properties.generalCategory == .control || scalar.properties.generalCategory == .format)
+                ? Character("\u{FFFD}")
+                : Character(scalar)
+        })
+    }
+
     func printSimulatorAgentResult(
         _ payload: [String: Any],
         output: SimulatorAgentOutput,

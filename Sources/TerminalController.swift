@@ -13,7 +13,6 @@ import CmuxSettings
 import CmuxSwiftRenderUI
 import Carbon.HIToolbox
 import CMUXAgentLaunch
-import CmuxAgentChat
 import Foundation
 import os
 import Bonsplit
@@ -118,17 +117,8 @@ class TerminalController {
         4
     private nonisolated let remotePTYControllerAvailabilityCondition = NSCondition()
     private nonisolated(unsafe) var remotePTYControllerAvailabilityGeneration: UInt64 = 0
-    /// One process-wide admission budget shared by every mobile connection.
-    nonisolated let mobileTaskFilesystemJobQuota: MobileTaskFilesystemJobQuota
     var tabManager: TabManager?
     let workspaceCreateIdempotencyCache = WorkspaceCreateIdempotencyCache(capacity: 256)
-    /// The shared auth coordinator + account flow, injected once via
-    /// `attachAuth` at app startup (AppDelegate `configure`) before the socket
-    /// listener starts. Socket auth commands read these on the main actor.
-    @MainActor private(set) var authCoordinator: AuthCoordinator?
-    @MainActor private(set) var accountFlow: HostAccountFlow?
-    @MainActor var agentChatTranscriptService: AgentChatTranscriptService?
-    nonisolated let terminalArtifactAuthorizationStore: TerminalArtifactAuthorizationStore
     // Sendable value type; injected at construction so socket auth never reaches a global.
     nonisolated let passwordStore: SocketControlPasswordStore
     private nonisolated let socketPasswordFileWatcher: FileWatcher?
@@ -354,8 +344,6 @@ class TerminalController {
         socketClientPreauthorizationLimiter: SocketClientPreauthorizationLimiter = .init(
             maximumConcurrentClaims: 32
         ),
-        mobileTaskFilesystemJobQuota: MobileTaskFilesystemJobQuota = .init(),
-        terminalArtifactAuthorizationStore: TerminalArtifactAuthorizationStore = .init(),
         remoteProxyBroker: any RemoteProxyBrokering = RemoteProxyBroker(
             tunnelProvider: RemoteDaemonProxyTunnelProvider(strings: .appLocalized, ptyBridgeStrings: AppRemotePTYBridgeStrings())
         ),
@@ -368,8 +356,6 @@ class TerminalController {
         self.socketPasswordFileWatcher = socketPasswordFileWatcher
         self.socketClientCapabilityAuthority = Self.makeSocketClientCapabilityAuthority()
         self.socketClientPreauthorizationLimiter = socketClientPreauthorizationLimiter
-        self.mobileTaskFilesystemJobQuota = mobileTaskFilesystemJobQuota
-        self.terminalArtifactAuthorizationStore = terminalArtifactAuthorizationStore
         self.transport = transport
         self.remoteProxyBroker = remoteProxyBroker
         let simulatorOwnershipFileManager = FileManager()
@@ -1098,8 +1084,6 @@ class TerminalController {
             // actor-owned, so the snapshot await bridges to this worker via
             // the established semaphore pattern. NOT mainThreadCallable — the
             // wait must never block the main thread.
-            case "iroh_diag":
-                return (true, irohDiagText())
             // The v1 resolution reads (tranche D): one v2MainSync snapshot
             // hop each, reply lines formatted here on this worker thread.
             // All mainThreadCallable (the hop collapses inline); the bodies
@@ -2564,7 +2548,7 @@ class TerminalController {
             "version": 2,
             "socket_path": socketServer.currentSocketPath,
             "access_mode": socketServer.accessMode.rawValue,
-            "capabilities": MobileHostService.mobileHostCapabilities,
+            "capabilities": [String](),
             "methods": methods.sorted()
         ]
     }
@@ -4340,23 +4324,7 @@ class TerminalController {
 
         v2MainSync {
             if action == "mobile_connect" {
-                let windowId = v2ResolveWindowId(tabManager: tabManager)
-                guard let workspace = AppDelegate.shared?.performMobileConnectWorkspaceAction(
-                    tabManager: tabManager,
-                    preferredWindow: windowId.flatMap { AppDelegate.shared?.mainWindow(for: $0) },
-                    focusWorkspace: v2FocusAllowed(),
-                    debugSource: "cli.workspaceAction.mobileConnect"
-                ) else {
-                    result = .err(code: "unavailable", message: "Mobile Connect is unavailable", data: nil)
-                    return
-                }
-                result = .ok([
-                    "action": action,
-                    "workspace_id": workspace.id.uuidString,
-                    "workspace_ref": v2Ref(kind: .workspace, uuid: workspace.id),
-                    "window_id": v2OrNull(windowId?.uuidString),
-                    "window_ref": v2Ref(kind: .window, uuid: windowId)
-                ])
+                result = .err(code: "unavailable", message: "Mobile Connect is unavailable in zerocmux", data: nil)
                 return
             }
 
@@ -10697,27 +10665,6 @@ class TerminalController {
     /// base64 encode/decode round-trip — kept verbatim so the reply bytes
     /// match the legacy `readTerminalTextBase64` pipeline exactly — run off
     /// the main actor.
-    /// Serves the v1 `iroh_diag` socket command: the host's iroh Connection
-    /// Report in the same `cmuxdiag v1` compact format the Settings pane
-    /// exports, read from the same `DiagnosticLog` snapshot path so the two
-    /// can never disagree. Empty ring prints just the header (count=0).
-    private nonisolated func irohDiagText() -> String {
-        let semaphore = DispatchSemaphore(value: 0)
-        nonisolated(unsafe) var export = ""
-        Task {
-            // Reads the nonisolated static ring directly: no main-actor hop, so
-            // the verb keeps working when the main thread is wedged (the case
-            // connection diagnostics exist for). The wait blocks only on the
-            // log's own drain actor, and the execution policy keeps this
-            // command off the main thread, so the wait cannot self-deadlock.
-            let report = await MobileHostIrohRuntime.hostDiagnosticLog.snapshot()
-            export = String(decoding: report.compactExport(), as: UTF8.self)
-            semaphore.signal()
-        }
-        semaphore.wait()
-        return export
-    }
-
     private nonisolated func readScreenText(_ args: String) -> String {
         let options: ReadScreenOptions
         switch parseReadScreenArgs(args) {
