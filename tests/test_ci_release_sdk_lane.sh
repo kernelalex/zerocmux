@@ -65,13 +65,13 @@ for workflow in "$CI_FILE" "$RELEASE_FILE"; do
 done
 
 if ! grep -Fq "actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0" "$RELEASE_FILE"; then
-  echo "FAIL: release.yml must download the macOS 15-built helper artifact" >&2
+  echo "FAIL: release.yml must download the prebuilt Ghostty helper artifact" >&2
   exit 1
 fi
 
 swift_package_section="$(job_section "$CI_FILE" "swift-package-tests")"
-if [[ "$swift_package_section" != *'runs-on: ${{ vars.MACOS_RUNNER_DUAL_XCODE || '\''depot-macos-26'\'' }}'* ]]; then
-  echo "FAIL: CI swift-package-tests must use the dual-Xcode runner lane" >&2
+if [[ "$swift_package_section" != *'runs-on: depot-macos-26'* ]]; then
+  echo "FAIL: CI swift-package-tests must run on the Depot macOS lane" >&2
   exit 1
 fi
 
@@ -80,8 +80,10 @@ if [[ "$swift_package_section" != *"timeout-minutes: 40"* ]]; then
   exit 1
 fi
 
-if [[ "$swift_package_section" != *"CMUX_CI_HELPER_XCODE_APP"* ]]; then
-  echo "FAIL: CI swift-package-tests must use a helper-specific Xcode pin" >&2
+# The dual-Xcode helper pin is gone (zig 0.16 links against current SDKs);
+# a helper-specific Xcode override must NOT come back silently.
+if [[ "$swift_package_section" == *"CMUX_CI_HELPER_XCODE_APP"* ]]; then
+  echo "FAIL: CI swift-package-tests must not reintroduce a helper-specific Xcode pin" >&2
   exit 1
 fi
 
@@ -91,33 +93,31 @@ if [[ "$swift_package_section" == *"/Applications/Xcode_16.4.app"* ]]; then
 fi
 
 if [[ "$swift_package_section" != *"./scripts/build-ghostty-cli-helper.sh --universal --output ghostty-cli-helper/ghostty"* ]]; then
-  echo "FAIL: CI swift-package-tests must build the universal Ghostty CLI helper on the macOS 15 lane" >&2
+  echo "FAIL: CI swift-package-tests must build the universal Ghostty CLI helper" >&2
   exit 1
 fi
 
 if [[ "$swift_package_section" != *"actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1"* ]]; then
-  echo "FAIL: CI swift-package-tests must upload the macOS 15-built Ghostty helper artifact" >&2
+  echo "FAIL: CI swift-package-tests must upload the Ghostty helper artifact" >&2
   exit 1
 fi
 
-swift_package_before_xcode="${swift_package_section%%- name: Select Xcode*}"
-if [[ "$swift_package_before_xcode" != *"CMUX_CI_REQUIRED_MACOS_SDK_MAJOR=15"* ]]; then
-  echo "FAIL: CI swift-package-tests must require a macOS 15 SDK for the helper build" >&2
+# The helper builds after the single lane Xcode selection.
+swift_package_before_build="${swift_package_section%%- name: Build universal Ghostty CLI helper*}"
+if [[ "$swift_package_before_build" != *"./scripts/select-ci-xcode.sh"* ]]; then
+  echo "FAIL: CI swift-package-tests must select the lane Xcode before building the Ghostty helper" >&2
   exit 1
 fi
 
-if [[ "$swift_package_before_xcode" != *"./scripts/build-ghostty-cli-helper.sh --universal --output ghostty-cli-helper/ghostty"* ]]; then
-  echo "FAIL: CI swift-package-tests must build the Ghostty helper before selecting the Xcode 26 SDK" >&2
+if [[ "$swift_package_section" != *"CMUX_CI_REQUIRED_MACOS_SDK_MAJOR=15"* ]]; then
+  : # the SDK-15 helper requirement is intentionally gone
+else
+  echo "FAIL: CI swift-package-tests must not reintroduce the SDK-15 helper requirement" >&2
   exit 1
 fi
 
-if [[ "$swift_package_before_xcode" != *"actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1"* ]]; then
-  echo "FAIL: CI swift-package-tests must upload the Ghostty helper before selecting the Xcode 26 SDK" >&2
-  exit 1
-fi
-
-if [[ "$swift_package_section" != *'[[ "$HELPER_SDK_VERSION" == 15.* ]]'* ]]; then
-  echo "FAIL: CI swift-package-tests must validate the uploaded Ghostty helper was built with a macOS 15 SDK" >&2
+if [[ "$swift_package_section" != *'[[ "$HELPER_MINOS" == 13.* ]]'* ]]; then
+  echo "FAIL: CI swift-package-tests must validate the Ghostty helper keeps its macOS 13 support floor (LC_BUILD_VERSION minos)" >&2
   exit 1
 fi
 
@@ -142,4 +142,4 @@ if grep -Fq "release-ghostty-cli-helper:" "$CI_FILE"; then
   exit 1
 fi
 
-echo "PASS: release uses artifact helper handoff; CI release-build downloads the helper from the existing macOS 15 package lane"
+echo "PASS: release uses artifact helper handoff; CI release-build downloads the helper from the swift-package-tests lane"

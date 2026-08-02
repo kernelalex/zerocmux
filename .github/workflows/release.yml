@@ -14,9 +14,9 @@ env:
   CREATE_DMG_VERSION: 8.0.0
 
 jobs:
-  # zig 0.15.2 cannot link on macOS 26 runners, so the Ghostty CLI helper is
-  # built on macOS 15 and installed into the app as a prebuilt artifact
-  # (mirrors the green release-build lane in ci.yml).
+  # The Ghostty CLI helper is built with the lane's default Xcode (zig 0.16
+  # links against current SDKs; the old SDK-15 pin was a zig 0.15.2 limit)
+  # and installed into the app as a prebuilt artifact (mirrors ci.yml).
   build-ghostty-cli-helper:
     runs-on: depot-macos-26
     timeout-minutes: 20
