@@ -7,7 +7,10 @@ description: End-user control of zerocmux topology and routing (windows, workspa
 
 Use this skill to control non-browser zerocmux topology and routing.
 
-## Core Concepts
+- **Window**: top-level macOS cmux window.
+- **Workspace**: tab-like group within a window.
+- **Pane**: split container in a workspace.
+- **Surface**: a tab within a pane (terminal or browser panel).
 
 - Window: top-level macOS zerocmux window.
 - Workspace: tab-like group within a window.
@@ -33,11 +36,15 @@ zerocmux move-surface --surface surface:7 --pane pane:2 --focus true
 zerocmux split-off --surface surface:7 right
 zerocmux reorder-surface --surface surface:7 --before surface:3
 
+# workspace context-menu actions (color, description, rename, pin, ...)
+cmux workspace-action --action set-color --color Blue
+cmux workspace-action --action set-description --description "Ship checklist"
+
 # attention cue
 zerocmux trigger-flash --surface surface:7
 ```
 
-## Settings and Docs
+## Handle model
 
 Use `zerocmux docs settings` before changing zerocmux-owned settings. It prints the docs URL, schema URL, raw GitHub resources, cmux.json paths, and reload command.
 
@@ -73,7 +80,7 @@ zerocmux settings shortcuts
 | Reference | When to Use |
 |-----------|-------------|
 | [references/handles-and-identify.md](references/handles-and-identify.md) | Handle syntax, self-identify, caller targeting |
-| [references/windows-workspaces.md](references/windows-workspaces.md) | Window/workspace lifecycle and reorder/move |
+| [references/windows-workspaces.md](references/windows-workspaces.md) | Window/workspace lifecycle, reorder/move, and context-menu actions (color, description, rename) |
 | [references/panes-surfaces.md](references/panes-surfaces.md) | Splits, surfaces, move/reorder, focus routing |
 | [references/trigger-flash-and-health.md](references/trigger-flash-and-health.md) | Flash cue and surface health checks |
 | [../cmux-workspace/SKILL.md](../cmux-workspace/SKILL.md) | Current caller workspace rules and non-disruptive automation |

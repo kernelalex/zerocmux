@@ -1,24 +1,13 @@
 # Tagged Builds
 
-Tagged builds isolate app name, bundle ID, socket, and DerivedData path so multiple agents and the user's normal app do not collide.
-
-## Reload
-
-Use:
+Tagged builds isolate app name, bundle ID, debug socket, and DerivedData path so multiple agents and the user's normal app do not collide.
 
 ```bash
-./scripts/reload.sh --tag <tag>
+./scripts/reload.sh --tag <tag>            # build only (default)
+./scripts/reload.sh --tag <tag> --launch   # build, then open
 ```
 
-`reload.sh` builds but does not launch by default. It terminates any running app with the same tag after a successful build, so opening the printed app path launches the fresh binary.
-
-Use:
-
-```bash
-./scripts/reload.sh --tag <tag> --launch
-```
-
-only when the task requires launching.
+After a successful build `reload.sh` terminates any running app with the same tag, so opening the printed app path launches the fresh binary.
 
 ## App path links
 
@@ -32,8 +21,6 @@ App path:
 Build chat links from that exact path. Prepend `file://` and URL-encode spaces as `%20`. Do not hardcode DerivedData paths and never use `/tmp/zerocmux-<tag>/...` app links in chat output.
 
 ## Tagged CLI and socket
-
-For CLI or socket dogfood against a tagged Debug app, use:
 
 ```bash
 CMUX_TAG=<tag> scripts/zerocmux-debug-cli.sh list-workspaces

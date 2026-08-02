@@ -2,20 +2,7 @@
 
 Login flows, session persistence, OAuth, and 2FA patterns for zerocmux browser surfaces.
 
-**Related**: [session-management.md](session-management.md), [SKILL.md](../SKILL.md)
-
-## Contents
-
-- [Basic Login Flow](#basic-login-flow)
-- [Saving Authentication State](#saving-authentication-state)
-- [Restoring Authentication](#restoring-authentication)
-- [OAuth / SSO Flows](#oauth--sso-flows)
-- [Two-Factor Authentication](#two-factor-authentication)
-- [Cookie-Based Auth](#cookie-based-auth)
-- [Token Refresh Handling](#token-refresh-handling)
-- [Security Best Practices](#security-best-practices)
-
-## Basic Login Flow
+## Basic login
 
 ```bash
 zerocmux browser open https://app.example.com/login --json
@@ -30,9 +17,7 @@ zerocmux browser surface:7 click e3 --snapshot-after --json
 zerocmux browser surface:7 wait --url-contains "/dashboard" --timeout-ms 20000
 ```
 
-## Saving Authentication State
-
-After logging in, save state for reuse:
+## Saving authentication state
 
 ```bash
 zerocmux browser surface:7 state save ./auth-state.json
@@ -40,7 +25,7 @@ zerocmux browser surface:7 state save ./auth-state.json
 
 State includes cookies, localStorage, sessionStorage, and open tab metadata for that surface.
 
-## Restoring Authentication
+## Restoring authentication
 
 ```bash
 zerocmux browser open https://app.example.com --json
@@ -49,7 +34,9 @@ zerocmux browser surface:8 goto https://app.example.com/dashboard
 zerocmux browser surface:8 snapshot --interactive
 ```
 
-## OAuth / SSO Flows
+## OAuth / SSO
+
+Same shape as basic login, waiting on the provider host and then the return host, with generous timeouts:
 
 ```bash
 zerocmux browser open https://app.example.com/auth/google --json
@@ -63,7 +50,7 @@ zerocmux browser surface:7 wait --url-contains "app.example.com" --timeout-ms 45
 zerocmux browser surface:7 state save ./oauth-state.json
 ```
 
-## Two-Factor Authentication
+## Two-factor
 
 ```bash
 zerocmux browser open https://app.example.com/login --json
@@ -84,12 +71,13 @@ zerocmux browser surface:7 cookies set session_token "abc123xyz"
 zerocmux browser surface:7 goto https://app.example.com/dashboard
 ```
 
-## Token Refresh Handling
+## Token refresh
+
+Load saved state, navigate, and re-login only when the URL bounced to `/login`:
 
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
-
 STATE_FILE="./auth-state.json"
 SURFACE="surface:7"
 
@@ -110,11 +98,9 @@ if printf '%s' "$URL" | grep -q '/login'; then
 fi
 ```
 
-## Security Best Practices
+## Security
 
-1. Never commit state files (they include auth tokens).
-2. Use environment variables for credentials.
-3. Clear state/cookies after sensitive tasks:
+Never commit state files; they contain auth tokens. Take credentials from environment variables. Clear state after sensitive tasks:
 
 ```bash
 zerocmux browser surface:7 cookies clear

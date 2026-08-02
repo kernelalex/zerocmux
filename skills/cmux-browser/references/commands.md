@@ -2,7 +2,7 @@
 
 This maps common `agent-browser` usage to `zerocmux browser` usage.
 
-## Direct Equivalents
+`agent-browser <verb>` maps to `cmux browser <surface> <verb>` for `goto`/`navigate`, `click`, `fill`, `type`, `select`, `get text`, `get url`, `get title`. `agent-browser snapshot -i` is `cmux browser <surface> snapshot --interactive`. `agent-browser open <url>` is `cmux browser open <url>` (no surface, since it creates one).
 
 - `agent-browser open <url>` -> `zerocmux browser open <url>`
 - `agent-browser goto|navigate <url>` -> `zerocmux browser <surface> goto|navigate <url>`
@@ -27,9 +27,7 @@ zerocmux browser <surface> back|forward|reload
 zerocmux browser <surface> get url|title
 ```
 
-> **Workspace context:** `browser open` targets the workspace of the terminal where the command is run (via `CMUX_WORKSPACE_ID`), even if a different workspace is currently focused. Use `--workspace` to override.
-
-### Snapshot and Inspection
+## Snapshot and inspection
 
 ```bash
 zerocmux browser <surface> snapshot --interactive
@@ -44,7 +42,7 @@ zerocmux browser <surface> get styles "#submit" --property color
 zerocmux browser <surface> eval '<js>'
 ```
 
-### Interaction
+## Interaction
 
 ```bash
 zerocmux browser <surface> click|dblclick|hover|focus <selector-or-ref>
@@ -56,11 +54,9 @@ zerocmux browser <surface> check|uncheck <selector-or-ref>
 zerocmux browser <surface> scroll [--selector <css>] [--dx <n>] [--dy <n>]
 ```
 
-Keyboard names follow Playwright/W3C conventions, including `Enter`, `Tab`,
-`Escape`, `ArrowLeft`, and `Space`. `Space`, `Spacebar`, and `space` all emit
-DOM key `" "` with code `"Space"`; use `--key ' '` to pass the raw DOM key.
+Keyboard names follow Playwright/W3C conventions (`Enter`, `Tab`, `Escape`, `ArrowLeft`, `Space`). `Space`, `Spacebar`, and `space` all emit DOM key `" "` with code `"Space"`; use `--key ' '` to pass the raw DOM key.
 
-### Wait
+## Wait
 
 ```bash
 zerocmux browser <surface> wait --selector "#ready" --timeout-ms 10000
@@ -70,7 +66,15 @@ zerocmux browser <surface> wait --load-state complete --timeout-ms 15000
 zerocmux browser <surface> wait --function "document.readyState === 'complete'" --timeout-ms 10000
 ```
 
-### Session/State
+## Design mode
+
+```bash
+cmux browser design-mode enable|status|disable --surface <surface> [--json]
+```
+
+Design mode lets a user select page elements and copy their DOM, style, URL, and screenshot context for pasting into an agent. CLI enable/disable never moves application focus or copies context automatically.
+
+## Session, state, diagnostics
 
 ```bash
 zerocmux browser <surface> cookies get|set|clear ...
@@ -89,16 +93,11 @@ zerocmux browser <surface> screenshot
 zerocmux browser <surface> download wait --timeout-ms 10000
 ```
 
-## Agent Reliability Tips
+## Agent reliability
 
-- Use `--snapshot-after` on mutating actions to return a fresh post-action snapshot.
-- Re-snapshot after navigation, modal open/close, or major DOM changes.
-- Prefer short handles in outputs by default (`surface:N`, `pane:N`, `workspace:N`, `window:N`).
-- Use `--id-format both` only when a UUID must be logged/exported.
+Use `--snapshot-after` on mutating actions to get a fresh post-action snapshot. Re-snapshot after navigation, modal open/close, or major DOM changes. Prefer short handles in output; use `--id-format both` only when a UUID must be logged or exported.
 
-## WKWebView Viewport Emulation
-
-Set an exact logical viewport after opening a browser surface:
+## Viewport emulation
 
 ```bash
 cmux browser surface:7 viewport 1280 720
@@ -106,30 +105,12 @@ cmux browser surface:7 screenshot --out /tmp/desktop.png
 cmux browser surface:7 viewport reset
 ```
 
-The requested dimensions are limited to 1...4096 CSS pixels. cmux changes
-`window.innerWidth` and `window.innerHeight`, then aspect-fits the page inside
-the existing pane. It does not resize the pane, move other surfaces, or change
-focus. Visible-viewport screenshots use the emulated dimensions. The JSON result
-includes the logical and displayed dimensions, scale, presentation mode, and
-whether the pane was resized. Screenshot PNG dimensions are exact CSS pixels on
-both Retina and non-Retina displays. Combined viewport/page-zoom geometry is
-bounded; unsupported combinations leave the viewport unchanged and return
-`invalid_params` with `reason: viewport_zoom_render_geometry_too_large` and
-`maximum_page_zoom`. Close or detach an attached browser inspector before setting
-or resetting the viewport; the command otherwise returns `invalid_state` with
-`reason: attached_browser_inspector`. Opening or redocking an attached inspector
-while emulation is active resets the viewport to native sizing.
+Dimensions are limited to 1..4096 CSS pixels. cmux changes `window.innerWidth`/`window.innerHeight` and aspect-fits the page inside the existing pane; it does not resize the pane, move other surfaces, or change focus. The JSON result includes logical and displayed dimensions, scale, presentation mode, and whether the pane was resized. Screenshot PNG dimensions are exact CSS pixels on Retina and non-Retina displays.
 
-## Known WKWebView Gaps (`not_supported`)
+Error cases: an unsupported viewport/page-zoom combination leaves the viewport unchanged and returns `invalid_params` with `reason: viewport_zoom_render_geometry_too_large` plus `maximum_page_zoom`. An attached browser inspector returns `invalid_state` with `reason: attached_browser_inspector`; close or detach it first. Opening or redocking an attached inspector while emulation is active resets the viewport to native sizing.
 
-- `browser.geolocation.set`
-- `browser.offline.set`
-- `browser.trace.start|stop`
-- `browser.network.route|unroute|requests`
-- `browser.screencast.start|stop`
-- `browser.input_mouse|input_keyboard|input_touch`
+## Known WKWebView gaps (`not_supported`)
 
-See also:
-- [snapshot-refs.md](snapshot-refs.md)
-- [authentication.md](authentication.md)
-- [session-management.md](session-management.md)
+`browser.geolocation.set`, `browser.offline.set`, `browser.trace.start|stop`, `browser.network.route|unroute|requests`, `browser.screencast.start|stop`, `browser.input_mouse|input_keyboard|input_touch`.
+
+See also [snapshot-refs.md](snapshot-refs.md), [authentication.md](authentication.md), [session-management.md](session-management.md).

@@ -1,172 +1,161 @@
-import CmuxSettings
 import Foundation
 
 extension TerminalController {
+    struct TaskCreateWorkspaceCandidate {
+        let tabManager: TabManager
+        let windowID: UUID?
+    }
+
+    struct TaskCreateWorkspaceResolution {
+        let workspace: Workspace
+        let candidate: TaskCreateWorkspaceCandidate
+    }
+
+    nonisolated static func v2ExpandedWorkingDirectory(_ raw: String?) -> String? {
+        guard let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty else {
+            return nil
+        }
+        guard trimmed.hasPrefix("~") else { return trimmed }
+        return (trimmed as NSString).expandingTildeInPath
+    }
+
     // Shared workspace-create implementation: the workspace.create command moved
     // to ControlCommandCoordinator.
     func v2WorkspaceCreate(
         params: [String: Any],
-        tabManager resolvedTabManager: TabManager? = nil
+        tabManager resolvedTabManager: TabManager? = nil,
+        taskCreateCandidates: [TaskCreateWorkspaceCandidate]? = nil,
+        idempotencyCache: WorkspaceCreateIdempotencyCache? = nil
     ) -> V2CallResult {
-        guard let tabManager = resolvedTabManager ?? v2ResolveTabManager(params: params) else {
-            return .err(code: "unavailable", message: "TabManager not available", data: nil)
-        }
-
-        let requestedWorkingDirectory = v2RawString(params, "working_directory")?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let workingDirectory = (requestedWorkingDirectory?.isEmpty == false) ? requestedWorkingDirectory : nil
-
-        let requestedInitialCommand = v2RawString(params, "initial_command")?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let initialCommand = (requestedInitialCommand?.isEmpty == false) ? requestedInitialCommand : nil
-
-        let rawInitialEnv = v2StringMap(params, "initial_env") ?? [:]
-        let initialEnv = rawInitialEnv.reduce(into: [String: String]()) { result, pair in
-            let key = pair.key.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !key.isEmpty else { return }
-            result[key] = pair.value
-        }
-        // Persistent per-workspace environment (issue #5995): applied to the
-        // initial shell and every later pane/surface/split, then round-tripped
-        // through session restore.
-        let workspaceEnv = Workspace.sanitizedWorkspaceEnvironment(
-            v2StringMap(params, "workspace_env") ?? [:]
+        let outcome = v2PrepareWorkspaceCreate(
+            params: params,
+            tabManager: resolvedTabManager,
+            taskCreateCandidates: taskCreateCandidates,
+            idempotencyCache: idempotencyCache
         )
-        let cwd: String?
-        if let workingDirectory {
-            cwd = workingDirectory
-        } else if let raw = params["cwd"] {
-            guard let str = raw as? String else {
-                return .err(code: "invalid_params", message: "cwd must be a string", data: nil)
-            }
-            cwd = str
-        } else {
-            cwd = nil
-        }
-
-        let requestedTitle = v2RawString(params, "title")?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let title = (requestedTitle?.isEmpty == false) ? requestedTitle : nil
-        let description = v2RawString(params, "description")
-
-        let groupId = v2UUID(params, "group_id")
-        if v2HasNonNullParam(params, "group_id"), groupId == nil {
-            return .err(code: "invalid_params", message: "Missing or invalid group_id", data: nil)
-        }
-        let hasGroupPlacementParam = v2HasNonNullParam(params, "group_placement")
-            || v2HasNonNullParam(params, "placement")
-        let hasGroupReferenceParam = v2HasNonNullParam(params, "group_reference_workspace_id")
-            || v2HasNonNullParam(params, "reference_workspace_id")
-        if groupId == nil, hasGroupPlacementParam || hasGroupReferenceParam {
-            return .err(
-                code: "invalid_params",
-                message: "group_id is required for group placement",
-                data: nil
+        let preparation: WorkspaceCreatePreparation
+        switch outcome {
+        case let .failure(result):
+            return result
+        case let .existing(resolution):
+            return workspaceCreateResult(
+                workspace: resolution.workspace,
+                windowID: resolution.candidate.windowID
             )
+        case let .completed(_, operationID):
+            return .err(
+                code: "already_completed",
+                message: "workspace.create operation already completed",
+                data: ["operation_id": operationID.uuidString]
+            )
+        case let .ready(ready):
+            preparation = ready
         }
-        let rawGroupPlacement = v2RawString(params, "group_placement")
-            ?? (groupId == nil ? nil : v2RawString(params, "placement"))
-        let groupPlacement = WorkspaceGroupNewPlacement(rawString: rawGroupPlacement)
-        if let raw = rawGroupPlacement,
-           !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-           groupPlacement == nil {
-            return .err(code: "invalid_params", message: "Invalid group_placement", data: ["group_placement": raw])
+        let workingDirectory = Self.v2ExpandedWorkingDirectory(
+            v2RawString(params, "working_directory")
+        )
+        let execution: WorkspaceCreateExecutionPreparation
+        switch v2PrepareWorkspaceCreateExecution(
+            params: params,
+            preparation: preparation,
+            workingDirectory: workingDirectory
+        ) {
+        case let .failure(result):
+            return result
+        case let .ready(ready):
+            execution = ready
         }
-        let groupReferenceWorkspaceId: UUID?
-        if v2HasNonNullParam(params, "group_reference_workspace_id") {
-            guard let parsed = v2UUID(params, "group_reference_workspace_id") else {
-                return .err(code: "invalid_params", message: "Missing or invalid group_reference_workspace_id", data: nil)
-            }
-            groupReferenceWorkspaceId = parsed
-        } else if v2HasNonNullParam(params, "reference_workspace_id") {
-            guard let parsed = v2UUID(params, "reference_workspace_id") else {
-                return .err(code: "invalid_params", message: "Missing or invalid group_reference_workspace_id", data: nil)
-            }
-            groupReferenceWorkspaceId = parsed
-        } else {
-            groupReferenceWorkspaceId = nil
-        }
+        return v2PerformWorkspaceCreate(
+            preparation: preparation,
+            execution: execution
+        )
+    }
 
-        // Decode optional layout param (same JSON schema as cmux.json layout field).
-        // Validate before creating the workspace so malformed layouts fail fast.
-        var layoutNode: CmuxLayoutNode?
-        if let rawLayout = params["layout"] {
-            guard JSONSerialization.isValidJSONObject(rawLayout),
-                  let layoutData = try? JSONSerialization.data(withJSONObject: rawLayout) else {
-                return .err(code: "invalid_params", message: "layout must be a valid JSON object", data: nil)
-            }
+    private func v2PerformWorkspaceCreate(
+        preparation: WorkspaceCreatePreparation,
+        execution: WorkspaceCreateExecutionPreparation,
+        operationAlreadyAccepted: Bool = false
+    ) -> V2CallResult {
+        let tabManager = preparation.tabManager
+        let operationID = preparation.operationID
+
+        var newWorkspace: Workspace?
+        if let operationID, !operationAlreadyAccepted {
+            // Acceptance must be durable before addWorkspace constructs a
+            // terminal and can execute the task command. A crash in between
+            // intentionally favors at-most-once startup over workspace recovery.
             do {
-                layoutNode = try JSONDecoder().decode(CmuxLayoutNode.self, from: layoutData)
+                try preparation.idempotencyCache.accept(operationID: operationID)
             } catch {
-                return .err(code: "invalid_params", message: "Invalid layout: \(error.localizedDescription)", data: nil)
-            }
-        }
-
-        var newId: UUID?
-        var initialSurfaceId: UUID?
-        let shouldFocus = v2FocusAllowed(requested: v2Bool(params, "focus") ?? false)
-        let shouldEagerLoadTerminal = v2Bool(params, "eager_load_terminal") ?? !shouldFocus
-        let shouldAutoRefreshMetadata = v2Bool(params, "auto_refresh_metadata") ?? true
-        if let groupId {
-            let validation = v2MainSync {
-                let groupExists = tabManager.workspaceGroups.contains(where: { $0.id == groupId })
-                let referenceIsMember = groupReferenceWorkspaceId.map { referenceWorkspaceId in
-                    tabManager.tabs.contains { $0.id == referenceWorkspaceId && $0.groupId == groupId }
-                } ?? true
-                return (groupExists: groupExists, referenceIsMember: referenceIsMember)
-            }
-            guard validation.groupExists else {
-                return .err(
-                    code: "not_found",
-                    message: "Group not found",
-                    data: ["group_id": groupId.uuidString]
+                workspaceCreateIdempotencyLogger.error(
+                    "Task reservation failed: \(String(describing: error), privacy: .private)"
                 )
-            }
-            guard validation.referenceIsMember else {
                 return .err(
-                    code: "invalid_params",
-                    message: controlWorkspaceGroupStrings().invalidReferenceWorkspace,
-                    data: ["group_reference_workspace_id": groupReferenceWorkspaceId?.uuidString ?? ""]
+                    code: "persistence_failed",
+                    message: "Workspace task could not be reserved safely",
+                    data: nil
                 )
             }
         }
         v2MainSync {
             let ws = tabManager.addWorkspace(
-                title: title,
-                workingDirectory: cwd,
-                initialTerminalCommand: layoutNode == nil ? initialCommand : nil,
-                initialTerminalEnvironment: layoutNode == nil ? initialEnv : [:],
-                workspaceEnvironment: workspaceEnv,
-                select: shouldFocus,
-                eagerLoadTerminal: shouldEagerLoadTerminal,
-                autoRefreshMetadata: shouldAutoRefreshMetadata
+                title: execution.title,
+                workingDirectory: execution.workingDirectory,
+                initialTerminalCommand: execution.layoutNode == nil ? execution.initialCommand : nil,
+                initialTerminalEnvironment: execution.layoutNode == nil ? execution.initialEnvironment : [:],
+                workspaceEnvironment: execution.workspaceEnvironment,
+                select: execution.shouldFocus,
+                eagerLoadTerminal: execution.shouldEagerLoadTerminal,
+                autoRefreshMetadata: execution.shouldAutoRefreshMetadata
             )
-            ws.setCustomDescription(description)
-            if let layoutNode {
-                ws.applyCustomLayout(layoutNode, baseCwd: cwd ?? ws.currentDirectory)
-            }
-            if let groupId {
-                tabManager.addWorkspaceToGroup(
-                    workspaceId: ws.id,
-                    groupId: groupId,
-                    placement: groupPlacement ?? .top,
-                    referenceWorkspaceId: groupReferenceWorkspaceId
+            ws.taskCreateOperationID = operationID
+            ws.setCustomDescription(execution.description)
+            if let layoutNode = execution.layoutNode {
+                ws.applyCustomLayout(
+                    layoutNode,
+                    baseCwd: execution.workingDirectory ?? ws.currentDirectory
                 )
             }
-            newId = ws.id
-            initialSurfaceId = ws.focusedPanelId
+            if let groupID = execution.groupID {
+                tabManager.addWorkspaceToGroup(
+                    workspaceId: ws.id,
+                    groupId: groupID,
+                    placement: execution.groupPlacement ?? .top,
+                    referenceWorkspaceId: execution.groupReferenceWorkspaceID
+                )
+            }
+            newWorkspace = ws
         }
 
-        guard let newId else {
+        guard let newWorkspace else {
             return .err(code: "internal_error", message: "Failed to create workspace", data: nil)
         }
-        let windowId = v2ResolveWindowId(tabManager: tabManager)
+        if let operationID {
+            preparation.idempotencyCache.associate(operationID: operationID, workspaceID: newWorkspace.id)
+        }
+        return workspaceCreateResult(
+            workspace: newWorkspace,
+            windowID: v2ResolveWindowId(tabManager: tabManager)
+        )
+    }
+
+    private func workspaceCreateResult(
+        workspace: Workspace,
+        windowID: UUID?
+    ) -> V2CallResult {
+        let workspaceID = workspace.id
+        let groupID = workspace.groupId
+        let surfaceID = workspace.focusedPanelId
         return .ok([
-            "window_id": v2OrNull(windowId?.uuidString),
-            "window_ref": v2Ref(kind: .window, uuid: windowId),
-            "workspace_id": newId.uuidString,
-            "workspace_ref": v2Ref(kind: .workspace, uuid: newId),
-            "group_id": v2OrNull(groupId?.uuidString),
-            "group_ref": v2Ref(kind: .workspaceGroup, uuid: groupId),
-            "surface_id": v2OrNull(initialSurfaceId?.uuidString),
-            "surface_ref": v2Ref(kind: .surface, uuid: initialSurfaceId)
+            "window_id": v2OrNull(windowID?.uuidString),
+            "window_ref": v2Ref(kind: .window, uuid: windowID),
+            "workspace_id": workspaceID.uuidString,
+            "workspace_ref": v2Ref(kind: .workspace, uuid: workspaceID),
+            "group_id": v2OrNull(groupID?.uuidString),
+            "group_ref": v2Ref(kind: .workspaceGroup, uuid: groupID),
+            "surface_id": v2OrNull(surfaceID?.uuidString),
+            "surface_ref": v2Ref(kind: .surface, uuid: surfaceID)
         ])
     }
 

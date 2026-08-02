@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-PORT="${PORT:-17321}"
+PORT="${PORT:-0}"
 TAG="${CMUX_TAG:-mobile}"
 IOS_TAG="${CMUX_IOS_TAG:-$TAG}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,11 +30,8 @@ import threading
 import time
 
 PORT = int(sys.argv[1])
-# The tags this server launched with. They are the fallback when no marker file
-# exists yet; once a reload script writes the marker, the live tags below track
-# it so the QR always pairs against the freshest build.
-INITIAL_TAG = os.environ["TAG"]
-INITIAL_IOS_TAG = os.environ["IOS_TAG"]
+TAG = os.environ["TAG"]
+IOS_TAG = os.environ["IOS_TAG"]
 SCRIPT_DIR = os.environ["SCRIPT_DIR"]
 PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
 # `ios/scripts/reload.sh` builds + installs + launches the tagged iOS app on
@@ -200,7 +197,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return
 
     def do_GET(self):
-        refresh_tags()
         path = self.path.split("?", 1)[0]
         if path in ("/", "/index.html"):
             self._serve_qr_page()
@@ -220,7 +216,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self._send(404, "text/plain", b"not found")
 
     def do_POST(self):
-        refresh_tags()
         # Mirror /open-tag so a `fetch('/open-tag', {method:'POST'})` works too.
         if self.path.split("?", 1)[0] == "/open-tag":
             self._open_tag()
@@ -450,10 +445,11 @@ class ThreadingServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
 regenerate(force=True)
 
 with ThreadingServer(("127.0.0.1", PORT), Handler) as httpd:
-    print(f"mobile QR server: http://127.0.0.1:{PORT}/  (tag={TAG}, ios_tag={IOS_TAG})")
-    print(f"  health:  http://127.0.0.1:{PORT}/healthz")
-    print(f"  ticket:  http://127.0.0.1:{PORT}/ticket.json")
-    print("Ctrl-C to stop.")
+    bound_port = httpd.server_address[1]
+    print(f"mobile QR server: http://127.0.0.1:{bound_port}/  (tag={TAG}, ios_tag={IOS_TAG})", flush=True)
+    print(f"  health:  http://127.0.0.1:{bound_port}/healthz", flush=True)
+    print(f"  ticket:  http://127.0.0.1:{bound_port}/ticket.json", flush=True)
+    print("Ctrl-C to stop.", flush=True)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

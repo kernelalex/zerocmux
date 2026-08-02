@@ -16,24 +16,19 @@ Prefer the `/release` command. It should handle:
 
 ## Version policy
 
-Use a minor bump by default. Use patch or major only when explicitly requested or clearly justified by the release scope.
-
-The version bump script updates both:
-
-- `MARKETING_VERSION`
-- `CURRENT_PROJECT_VERSION`
-
-The build number must increase for Sparkle auto-update. If `release-pretag-guard.sh` fails because the build number is not monotonic, run the bump script, commit the build-number bump, and retry the guard.
+Minor bump by default. Patch or major only when explicitly requested or clearly justified by the release scope.
 
 ## Changelog
 
-Update `CHANGELOG.md`. The docs changelog page at `web/app/docs/changelog/page.tsx` renders from it, so do not update a separate docs changelog source.
+Keep `CHANGELOG.md` user-facing: user-visible fixes, behavior changes, and compatibility notes rank above internal refactors.
 
-Keep the changelog user-facing. Mention user-visible fixes, behavior changes, and compatibility notes more prominently than internal refactors.
+## Failure triage
 
-## Tagging
+- `release-pretag-guard.sh` fails on a non-monotonic build number: run `./scripts/bump-version.sh`, commit the bump, retry.
+- Release automation fails **before** signing: inspect workflow configuration and version metadata.
+- Release automation fails **during** signing or notarization: inspect secret availability and Apple account status.
 
-Run before tagging:
+## Asset rename
 
 ```bash
 ./scripts/release-pretag-guard.sh

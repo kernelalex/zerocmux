@@ -10,8 +10,7 @@ Prefer project-local `.cmux/cmux.json` for team workflows and global
 
 ## Worktree Agents
 
-Use this when the user wants the plus button to open a worktree or checkout
-layout, and right-click to offer alternate starters.
+Plus button opens a worktree layout; right-click offers alternate starters. `workspaceCommand.commandName` must match a `commands[].name`.
 
 ```json
 {
@@ -34,87 +33,41 @@ layout, and right-click to offer alternate starters.
       ]
     }
   },
-  "commands": [
-    {
-      "name": "Worktree Agents",
-      "workspace": {
-        "name": "Worktree Agents",
-        "cwd": "../worktrees/my-feature",
-        "layout": {
-          "direction": "horizontal",
-          "children": [
-            {
-              "pane": {
-                "surfaces": [
-                  { "type": "terminal", "name": "Codex", "command": "codex" }
-                ]
-              }
-            },
-            {
-              "pane": {
-                "surfaces": [
-                  { "type": "terminal", "name": "Claude", "command": "claude" }
-                ]
-              }
-            }
-          ]
-        }
-      }
+  "commands": [{
+    "name": "Worktree Agents",
+    "description": "Create a worktree and open agents inside it",
+    "workspace": {
+      "name": "Worktree Agents", "cwd": "../worktrees/my-feature",
+      "layout": { "direction": "horizontal", "children": [
+        { "pane": { "surfaces": [{ "type": "terminal", "name": "Codex", "command": "codex" }] } },
+        { "pane": { "surfaces": [{ "type": "terminal", "name": "Claude", "command": "claude" }] } }
+      ]}
     }
-  ]
+  }]
 }
 ```
 
 ## Full-Stack Dev
 
-Use this when a repo needs terminals, browser preview, and persistent Dock
-controls for repeated local development.
+Terminals plus browser preview plus persistent Dock controls.
 
 `.cmux/cmux.json`:
 
 ```json
 {
-  "commands": [
-    {
-      "name": "Full-Stack Dev",
-      "workspace": {
-        "name": "Dev",
-        "cwd": ".",
-        "layout": {
-          "direction": "horizontal",
-          "split": 0.55,
-          "children": [
-            {
-              "direction": "vertical",
-              "children": [
-                {
-                  "pane": {
-                    "surfaces": [
-                      { "type": "terminal", "name": "Web", "command": "bun dev" }
-                    ]
-                  }
-                },
-                {
-                  "pane": {
-                    "surfaces": [
-                      { "type": "terminal", "name": "Tests", "command": "bun test --watch" }
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "pane": {
-                "surfaces": [
-                  { "type": "browser", "name": "Preview", "url": "http://localhost:3000" }
-                ]
-              }
-            }
-          ]
-        }
-      }
+  "commands": [{
+    "name": "Full-Stack Dev",
+    "workspace": {
+      "name": "Dev", "cwd": ".",
+      "layout": { "direction": "horizontal", "split": 0.55, "children": [
+        { "direction": "vertical", "children": [
+          { "pane": { "surfaces": [{ "type": "terminal", "name": "Web", "command": "bun dev" }] } },
+          { "pane": { "surfaces": [{ "type": "terminal", "name": "Tests", "command": "bun test --watch" }] } }
+        ]},
+        { "pane": { "surfaces": [{ "type": "browser", "name": "Preview", "url": "http://localhost:3000" }] } }
+      ]}
     }
-  ]
+  }]
 }
 ```
 
@@ -136,83 +89,43 @@ open a known SSH session beside project notes or a browser preview.
 
 ```json
 {
-  "commands": [
-    {
-      "name": "SSH Devbox",
-      "keywords": ["ssh", "remote", "devbox"],
-      "workspace": {
-        "name": "Devbox",
-        "cwd": ".",
-        "layout": {
-          "direction": "horizontal",
-          "children": [
-            {
-              "pane": {
-                "surfaces": [
-                  { "type": "terminal", "name": "SSH", "command": "ssh devbox" }
-                ]
-              }
-            },
-            {
-              "pane": {
-                "surfaces": [
-                  { "type": "browser", "name": "Preview", "url": "http://localhost:3000" }
-                ]
-              }
-            }
-          ]
-        }
-      }
+  "commands": [{
+    "name": "SSH Devbox",
+    "keywords": ["ssh", "remote", "devbox"],
+    "workspace": {
+      "name": "Devbox", "cwd": ".",
+      "layout": { "direction": "horizontal", "children": [
+        { "pane": { "surfaces": [{ "type": "terminal", "name": "SSH", "command": "ssh devbox" }] } },
+        { "pane": { "surfaces": [{ "type": "browser", "name": "Preview", "url": "http://localhost:3000" }] } }
+      ]}
     }
-  ]
+  }]
 }
 ```
 
 ## Review PR
 
-Use this when a project needs one command to review a pull request with a
-terminal, browser, and notes panel. Adjust the URL and command for the user's
-GitHub workflow.
+One command for terminal plus browser PR review. Adjust the URL and command for the user's GitHub workflow.
 
 ```json
 {
-  "commands": [
-    {
-      "name": "Review PR",
-      "keywords": ["review", "pull request", "pr"],
-      "workspace": {
-        "name": "PR Review",
-        "cwd": ".",
-        "layout": {
-          "direction": "horizontal",
-          "children": [
-            {
-              "pane": {
-                "surfaces": [
-                  { "type": "terminal", "name": "GitHub", "command": "gh pr status" }
-                ]
-              }
-            },
-            {
-              "pane": {
-                "surfaces": [
-                  { "type": "browser", "name": "Pull Request", "url": "https://github.com/owner/repo/pulls" }
-                ]
-              }
-            }
-          ]
-        }
-      }
+  "commands": [{
+    "name": "Review PR",
+    "keywords": ["review", "pull request", "pr"],
+    "workspace": {
+      "name": "PR Review", "cwd": ".",
+      "layout": { "direction": "horizontal", "children": [
+        { "pane": { "surfaces": [{ "type": "terminal", "name": "GitHub", "command": "gh pr status" }] } },
+        { "pane": { "surfaces": [{ "type": "browser", "name": "Pull Request", "url": "https://github.com/owner/repo/pulls" }] } }
+      ]}
     }
-  ]
+  }]
 }
 ```
 
 ## Docs Workspace
 
-Use this when a repo needs one command for docs authoring with a dev server,
-browser preview, and markdown viewer. Adjust the command, URL, and markdown path
-for the docs stack.
+Docs server, markdown viewer, and browser preview. Adjust command, URL, and markdown path for the docs stack.
 
 ```json
 {
@@ -261,32 +174,19 @@ for the docs stack.
         }
       }
     }
-  ]
+  }]
 }
 ```
 
 ## Quick Agent Buttons
 
-Use this when the user wants tab bar buttons for common agents while keeping
-the default new terminal and browser buttons.
+Agent buttons alongside the default terminal and browser buttons.
 
 ```json
 {
   "actions": {
-    "codex-new-tab": {
-      "type": "agent",
-      "agent": "codex",
-      "title": "Codex",
-      "target": "newTabInCurrentPane",
-      "palette": true
-    },
-    "claude-new-tab": {
-      "type": "agent",
-      "agent": "claude",
-      "title": "Claude",
-      "target": "newTabInCurrentPane",
-      "palette": true
-    }
+    "codex-new-tab": { "type": "agent", "agent": "codex", "title": "Codex", "target": "newTabInCurrentPane", "palette": true },
+    "claude-new-tab": { "type": "agent", "agent": "claude", "title": "Claude", "target": "newTabInCurrentPane", "palette": true }
   },
   "ui": {
     "surfaceTabBar": {
@@ -303,8 +203,7 @@ the default new terminal and browser buttons.
 
 ## CI Watch
 
-Use this when the user wants a repeatable place for GitHub Actions, CircleCI,
-or release-monitoring commands. Prefer Dock controls for long-running monitors.
+Long-running monitors belong in Dock controls, not workspace panes.
 
 `.cmux/dock.json`:
 
@@ -328,11 +227,11 @@ or release-monitoring commands. Prefer Dock controls for long-running monitors.
 }
 ```
 
-## Validation Checklist
+## Validation checklist
 
 - Parse any changed JSON or JSONC before reporting success.
 - Keep `cwd` inside the `workspace` object for workspace commands.
 - Confirm `workspaceCommand.commandName` matches a `commands[].name`.
-- Use `ui.newWorkspace.contextMenu` in new examples, not the alias.
+- Use `ui.newWorkspace.contextMenu`, not the `rightClick` alias.
 - Keep built-in tab bar buttons only when the user wants them visible.
 - Keep secrets out of config. Use shell profiles, env vars, or a secret store.

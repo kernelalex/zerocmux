@@ -71,7 +71,9 @@ extension AppDelegate {
             sidebarSelectionState: SidebarSelectionState(),
             fileExplorerState: fileExplorerState,
             cmuxConfigStore: cmuxConfigStore,
-            window: nil
+            window: nil,
+            workspaceTerminalFontSizeArbiter:
+                workspaceTerminalFontSizeArbiter
         )
         notifyMainWindowContextsDidChange()
         return windowId

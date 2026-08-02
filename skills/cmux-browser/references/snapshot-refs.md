@@ -44,7 +44,7 @@ zerocmux browser surface:7 fill e11 "password123"
 zerocmux browser surface:7 click e12
 ```
 
-## Ref Lifecycle
+## Ref lifecycle
 
 Refs are invalidated when page structure changes.
 

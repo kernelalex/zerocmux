@@ -1,13 +1,9 @@
 # Command Reference (cmux Markdown)
 
-## Opening a Markdown Panel
-
 ```bash
 zerocmux markdown open <path>
 zerocmux markdown <path>          # shorthand (implicit "open")
 ```
-
-### Options
 
 | Flag | Description | Default |
 |------|-------------|---------|
@@ -15,29 +11,19 @@ zerocmux markdown <path>          # shorthand (implicit "open")
 | `--surface <id\|ref\|index>` | Source surface to split from | Focused surface |
 | `--window <id\|ref>` | Target window | Current window |
 
-### Output
+## Output
 
 ```
 OK surface=surface:8 pane=pane:3 path=/absolute/path/to/file.md
 ```
 
-With `--json`:
+`--json` returns `window_id`, `workspace_id`, `pane_id`, `surface_id`, and `path`.
 
-```json
-{
-  "window_id": "...",
-  "workspace_id": "...",
-  "pane_id": "...",
-  "surface_id": "...",
-  "path": "/absolute/path/to/file.md"
-}
-```
+## Panel behavior
 
-## Path Resolution
+The panel opens as a horizontal split to the right of the source surface. The tab shows the filename and a document icon; the file path appears as a breadcrumb at the top. Content is read-only with text selection enabled.
 
-- Relative paths are resolved against the caller's current working directory.
-- `~` is expanded to the home directory.
-- The resolved absolute path is returned in the output.
+Markdown panels are saved and restored across sessions and re-read the file from disk on restore. A panel is not recreated if the file no longer exists at restore time.
 
 ```bash
 # These are equivalent when run from /Users/me/project

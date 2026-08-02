@@ -17,6 +17,16 @@ extension cmuxApp {
             Divider()
 
             helpResourceButton(.githubIssues)
+            #if DEBUG
+            Button(
+                String(
+                    localized: "debug.menu.sidebarFooterIconBalance",
+                    defaultValue: "Footer Icon Balance Lab…"
+                )
+            ) {
+                AppDelegate.shared?.debugWindowsCoordinator.showSidebarFooterIconBalanceWindow()
+            }
+            #endif
 
             Divider()
 

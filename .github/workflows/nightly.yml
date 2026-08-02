@@ -47,15 +47,10 @@ jobs:
               : 'main';
             const isMainRef = requestedRef === 'main';
 
-            let headSha = context.sha;
-            if (isMainRef) {
-              const branch = await github.rest.repos.getBranch({
-                owner,
-                repo,
-                branch: 'main',
-              });
-              headSha = branch.data.commit.sha;
-            }
+            // Pin every run to the revision that triggered it. In particular,
+            // queued main pushes must each build their own merge commit instead
+            // of all resolving to whichever commit is newest when `decide` runs.
+            const headSha = context.sha;
 
             let nightlySha = null;
             if (isMainRef) {
@@ -106,6 +101,7 @@ jobs:
       - name: Checkout build ref
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           ref: ${{ needs.decide.outputs.head_sha }}
           submodules: recursive
 

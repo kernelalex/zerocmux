@@ -5,15 +5,19 @@ description: "Contributor workflow rules for zerocmux setup, Xcode project norma
 
 # zerocmux Dev Workflow
 
+## Initial setup
+
+`./scripts/setup.sh` initializes submodules, builds GhosttyKit, and installs the pbxproj normalization pre-commit hook.
+
 ## Tagged local dev
 
-After making code changes, always run the reload script with a tag to build the Debug app:
+Build the Debug app after every code change:
 
 ```bash
 ./scripts/reload.sh --tag <short-tag>
 ```
 
-By default, `reload.sh` builds but does not launch the app. Pass `--launch` only when you need to open it automatically.
+It builds without launching; pass `--launch` only when you need the app open. Never run bare `xcodebuild` or open an untagged `cmux DEV.app`: untagged builds share the default debug socket and bundle ID with other agents, causing conflicts and stealing focus.
 
 Never run bare `xcodebuild` or open an untagged `zerocmux DEV.app`. Untagged builds share the default debug socket and bundle ID with other agents, causing conflicts and stealing focus.
 
@@ -43,13 +47,11 @@ Run the setup script to initialize submodules, build GhosttyKit, and install the
 
 The team is pinned to Xcode 26.x. `.xcode-version` records the major; `cmux.xcodeproj/project.pbxproj` carries `objectVersion = 60`, which is what Xcode 26 writes by default. (objectVersion 77 is reserved for projects that adopt synchronized folder groups, which zerocmux does not use yet. Bumping to a different value requires a deliberate team decision.)
 
-`scripts/setup.sh` installs a tracked pre-commit hook (`scripts/git-hooks/pre-commit`) that runs `scripts/normalize-pbxproj.py` on any staged `cmux.xcodeproj/project.pbxproj`, sorting the high-churn sections so Xcode's nondeterministic reordering never reaches a commit. The hook is idempotent. CI runs `scripts/check-pbxproj.sh` to enforce both the `objectVersion` pin and normalization, so anyone who skips the hook (or never ran setup) gets a clear failure on their PR.
-
-`.xcode-version` is the single source of truth. To bump the pin: edit `.xcode-version`, open `cmux.xcodeproj` in the new Xcode (which rewrites `objectVersion` automatically when it touches the file), and add a case for the new Xcode major in `scripts/check-pbxproj.sh` mapping it to the `objectVersion` that major writes.
+`scripts/setup.sh` installs the tracked `scripts/git-hooks/pre-commit`, which runs `scripts/normalize-pbxproj.py` on any staged `project.pbxproj` so Xcode's nondeterministic reordering never reaches a commit. The hook is idempotent. CI runs `scripts/check-pbxproj.sh` to enforce both the `objectVersion` pin and normalization, so skipping the hook gives a clear PR failure. Bumping the pin is a deliberate team decision: see [references/xcode-project-normalization.md](references/xcode-project-normalization.md).
 
 ## Sidebar extension point (dev tagging)
 
-Each tagged dev build gets its own ExtensionKit sidebar extension point so concurrent dev builds don't collide. Three build settings drive this:
+Each tagged dev build gets its own ExtensionKit sidebar extension point so concurrent dev builds do not collide. Three build settings drive it:
 
 - `CMUX_SIDEBAR_EXTENSION_POINT_ID` (default `com.kernelalex.zerocmux.cmux.sidebar`): the extension point identifier baked into Info.plist at build time.
 - `CMUX_BUNDLE_ID_SUFFIX` (default empty): inserted into the app and appex bundle ids so a tagged extension gets a distinct identity that pkd records separately.
@@ -57,7 +59,9 @@ Each tagged dev build gets its own ExtensionKit sidebar extension point so concu
 
 The host resolves its point id at runtime from the Info.plist key `CMUXSidebarExtensionPointIdentifier` via `CmuxSidebarExtensionPoint.identifier(in:)`. `./scripts/reload.sh --tag <tag>` scopes the host point to `com.kernelalex.zerocmux.debug.<tag>.cmux.sidebar`. `./scripts/reload-extension.sh --tag <tag> [--host-bundle-id <id>] [--example sample|tabs|both]` builds a matching tag-scoped sample extension, passing `CMUX_SIDEBAR_EXTENSION_POINT_ID=<host-bundle-id>.cmux.sidebar`, `CMUX_BUNDLE_ID_SUFFIX=.<tag>`, and `CMUX_DISPLAY_NAME_SUFFIX=" <tag>"`. It installs exactly what xcodebuild produced (xcodebuild ad-hoc signs with entitlements intact) — it does NOT re-sign, because a bare `codesign --force --sign -` strips the appex entitlements and the extension then drops its host XPC connection. pkd ingests the tagged copy because its bundle id is distinct. Verify with `pluginkit -m -p <host-bundle-id>.cmux.sidebar`.
 
-To author a NEW sample extension that is tag-ready:
+```bash
+./scripts/reload-extension.sh --tag <tag> [--host-bundle-id <id>] [--example sample|tabs|both]
+```
 
 - appex Info.plist: `EXAppExtensionAttributes:EXExtensionPointIdentifier = $(CMUX_SIDEBAR_EXTENSION_POINT_ID)`.
 - add `CMUX_SIDEBAR_EXTENSION_POINT_ID` (default `com.kernelalex.zerocmux.cmux.sidebar`), `CMUX_BUNDLE_ID_SUFFIX` (default empty), and `CMUX_DISPLAY_NAME_SUFFIX` (default empty) build settings to the app and appex targets in all build configs.

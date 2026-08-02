@@ -1,15 +1,6 @@
 # Handles and Identify
 
-Use `identify` and short handles for deterministic automation targeting.
-
-## Handle Inputs
-
-Most v2-backed commands accept:
-- UUID
-- short ref (`window:N`, `workspace:N`, `pane:N`, `surface:N`)
-- index (where legacy/index-based commands still allow it)
-
-## Self Identify
+Most v2-backed commands accept a UUID, a short ref (`window:N`, `workspace:N`, `pane:N`, `surface:N`), or an index where legacy index-based commands still allow it.
 
 ```bash
 zerocmux identify --json

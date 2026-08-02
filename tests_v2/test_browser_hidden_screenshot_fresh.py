@@ -12,7 +12,9 @@ from pathlib import Path
 from typing import Iterable
 
 sys.path.insert(0, str(Path(__file__).parent))
-from cmux import cmux, cmuxError
+from cmux import BROWSER_SCREENSHOT_RESPONSE_TIMEOUT_S, cmux, cmuxError
+
+zerocmux = cmux
 
 
 SOCKET_PATH = os.environ.get("CMUX_SOCKET_PATH", "/tmp/zerocmux-debug.sock")
@@ -153,7 +155,11 @@ def _dominant_channel_counts(png_base64: str) -> tuple[int, int, int, int, int]:
 
 
 def _screenshot_color_counts(c: zerocmux, surface_id: str) -> tuple[int, int, int, int, int]:
-    shot = c._call("browser.screenshot", {"surface_id": surface_id}, timeout_s=20.0) or {}
+    shot = c._call(
+        "browser.screenshot",
+        {"surface_id": surface_id},
+        timeout_s=BROWSER_SCREENSHOT_RESPONSE_TIMEOUT_S,
+    ) or {}
     payload = str(shot.get("png_base64") or "")
     _must(len(payload) > 100, f"Expected screenshot payload: {shot}")
     return _dominant_channel_counts(payload)
