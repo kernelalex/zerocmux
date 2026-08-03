@@ -90,7 +90,17 @@ jobs:
           import json
           import sys
 
+          # Throughput/latency benchmarks are not leak-check subjects: valgrind's
+          # instruction emulation makes their measured bounds meaningless and
+          # their fixed transfer volume dominates this job's budget. The same
+          # transport allocation paths stay covered here by direct_ws_e2e,
+          # direct_wss_e2e, forward_e2e, multi_client_e2e and pty_reconnect_e2e,
+          # and the excluded targets keep running unmodified in `test (linux)`
+          # and `test (macos)`.
+          BENCHMARK_TARGETS = {"interactive_latency_e2e"}
+
           seen = set()
+          skipped = set()
           with open("target/cargo-test-binaries.jsonl", "r", encoding="utf-8") as messages:
               with open("target/valgrind-test-binaries.txt", "w", encoding="utf-8") as output:
                   for line in messages:
@@ -103,12 +113,23 @@ jobs:
                       executable = message.get("executable")
                       if not executable or executable in seen:
                           continue
+                      name = message.get("target", {}).get("name")
+                      if name in BENCHMARK_TARGETS:
+                          skipped.add(name)
+                          continue
                       seen.add(executable)
                       print(executable, file=output)
 
           if not seen:
               raise SystemExit("cargo did not report any test binaries")
-          print(f"Collected {len(seen)} test binaries", file=sys.stderr)
+          missing = BENCHMARK_TARGETS - skipped
+          if missing:
+              raise SystemExit(f"benchmark exclusion list is stale: {sorted(missing)}")
+          print(
+              f"Collected {len(seen)} test binaries "
+              f"(skipped benchmarks: {sorted(skipped)})",
+              file=sys.stderr,
+          )
           PY
 
       - name: Run test binaries under valgrind
