@@ -16,15 +16,10 @@ struct CmuxFeatureFlagDefinition: Identifiable, Equatable, Sendable {
 /// overrides and per-flag defaults only, with no network resolution.
 ///
 /// Resolution semantics (flags must never break the app):
-/// - A remote value is authoritative when present, so rollout and kill-switch
-///   changes cannot be masked by a stale local override.
-/// - Without a remote value, a local override applies, followed by the explicit
-///   per-flag default.
-/// - Until a payload arrives, the last remote value survives restarts. A flag
-///   that has never loaded keeps its safe default.
-/// - Request and payload failures preserve the complete cached snapshot. A
-///   successfully parsed payload replaces it, so omitted flags return to their
-///   local override or default.
+/// - A persisted local override applies when present.
+/// - Without a local override, the explicit per-flag default applies.
+/// - Legacy remote cache entries are deleted during initialization and are
+///   never read, so values from telemetry-enabled builds cannot remain active.
 ///
 /// Registry contract (enforced by scripts/lint-feature-flags.py in CI): each
 /// flag declares key / owner / reviewBy / defaultWhenUnavailable in the FLAG
@@ -48,13 +43,13 @@ final class CmuxFeatureFlags {
     private static let appKitSidebarListDefault = true
 
     private static let overrideKeyPrefix = "cmux.flags.override."
-    private static let remoteCacheKeyPrefix = "cmux.flags.remote."
+    private static let legacyRemoteCacheKeyPrefix = "cmux.flags.remote."
 
     // FLAG(key: sidebar-appkit-list-experiment, owner: lawrencecchen,
     //      reviewBy: 2026-10-01, defaultWhenUnavailable: true)
     // Renders the workspace sidebar with the AppKit NSTableView list
     // (virtualized rows, measured-once heights) instead of the SwiftUI
-    // LazyVStack. On by default after the remote rollout reached 100%.
+    // LazyVStack. On by default after the experiment was validated.
     static let appKitSidebarListFlag = CmuxFeatureFlagDefinition(
         key: "sidebar-appkit-list-experiment",
         title: String(
@@ -74,9 +69,7 @@ final class CmuxFeatureFlags {
     // and answers the mobile.workspace.changes.* RPCs behind it. Every iOS
     // entry point (workspace-row chip, toolbar button, one-time hint, Changes
     // sheet, summary polling) feature-detects on that capability, so this one
-    // Mac-side flag turns the whole feature off end to end. Release builds
-    // keep it off until the PostHog flag enables it; DEBUG keeps it on for
-    // dogfood.
+    // Mac-side flag turns the whole feature off end to end.
     nonisolated static let mobileWorkspaceChangesFlag = CmuxFeatureFlagDefinition(
         key: "mobile-workspace-changes-enabled-release",
         title: String(
@@ -90,6 +83,23 @@ final class CmuxFeatureFlags {
         defaultWhenUnavailable: CmuxFeatureFlags.mobileWorkspaceChangesDefault
     )
 
+    // FLAG(key: simulator-enabled-release, owner: lawrencecchen,
+    //      reviewBy: 2026-10-01, defaultWhenUnavailable: true)
+    // Controls every Simulator entrypoint and active pane. The enabled local
+    // default preserves access unless a user explicitly overrides it.
+    static let simulatorFlag = CmuxFeatureFlagDefinition(
+        key: "simulator-enabled-release",
+        title: String(
+            localized: "featureFlags.simulator.title",
+            defaultValue: "Simulator"
+        ),
+        flagDescription: String(
+            localized: "featureFlags.simulator.description",
+            defaultValue: "Enables iPhone and iPad Simulator panes, commands, and automation."
+        ),
+        defaultWhenUnavailable: CmuxFeatureFlags.simulatorDefault
+    )
+
     // Order is load-bearing for the positional typed accessors below. Flags
     // that need a stable public definition are declared independently and
     // included here without repeating their key literal.
@@ -98,8 +108,8 @@ final class CmuxFeatureFlags {
             // FLAG(key: pro-upgrade-ui-enabled-release, owner: lawrencecchen,
             //      reviewBy: 2026-10-01, defaultWhenUnavailable: false)
             // Shows the Pro upgrade entrypoints (sidebar badge, Settings Account
-            // card, palette command, Help menu item). Release builds hide them until
-            // the PostHog flag is enabled; DEBUG keeps them visible for dogfood.
+            // card, palette command, Help menu item). They remain locally
+            // configurable while defaulting off.
             CmuxFeatureFlagDefinition(
                 key: "pro-upgrade-ui-enabled-release",
                 title: String(localized: "featureFlags.proUpgrade.title", defaultValue: "Pro upgrade UI"),
@@ -113,8 +123,7 @@ final class CmuxFeatureFlags {
             // FLAG(key: mobile-connect-button-enabled-release, owner: lawrencecchen,
             //      reviewBy: 2026-10-01, defaultWhenUnavailable: false)
             // Shows the bottom-left sidebar iPhone button that opens the Mobile
-            // Connect workspace. It stays hidden until the remote flag or a
-            // local debug override enables it.
+            // Connect workspace. It stays hidden until a local override enables it.
             CmuxFeatureFlagDefinition(
                 key: "mobile-connect-button-enabled-release",
                 title: String(localized: "featureFlags.mobileConnect.title", defaultValue: "Mobile Connect button"),
@@ -144,8 +153,7 @@ final class CmuxFeatureFlags {
             // Shows the Cloud VM entrypoints: the new-workspace dropdown section
             // (Open/Fork/Checkpoint/Restore/Advanced), the caret's direct Cloud
             // VM menu, and the command-palette Cloud VM commands. Release builds
-            // hide them until the PostHog flag is enabled; DEBUG keeps them
-            // visible for dogfood.
+            // hide them until a local override enables them.
             CmuxFeatureFlagDefinition(
                 key: "cloud-vm-ui-enabled-release",
                 title: String(localized: "featureFlags.cloudVM.title", defaultValue: "Cloud VM UI"),
@@ -188,29 +196,13 @@ final class CmuxFeatureFlags {
                 defaultWhenUnavailable: CmuxFeatureFlags.sidebarWorkspaceAgentSpinnerDefault
             ),
 
-            // FLAG(key: simulator-enabled-release, owner: lawrencecchen,
-            //      reviewBy: 2026-10-01, defaultWhenUnavailable: true)
-            // Controls every Simulator entrypoint and active pane. The enabled
-            // fallback preserves access when PostHog is unavailable, while the
-            // remote value provides a release kill switch.
-            CmuxFeatureFlagDefinition(
-                key: "simulator-enabled-release",
-                title: String(
-                    localized: "featureFlags.simulator.title",
-                    defaultValue: "Simulator"
-                ),
-                flagDescription: String(
-                    localized: "featureFlags.simulator.description",
-                    defaultValue: "Enables iPhone and iPad Simulator panes, commands, and automation."
-                ),
-                defaultWhenUnavailable: CmuxFeatureFlags.simulatorDefault
-            ),
+            CmuxFeatureFlags.simulatorFlag,
 
             // FLAG(key: workspace-todo-controls-enabled-release, owner: lawrencecchen,
             //      reviewBy: 2026-10-01, defaultWhenUnavailable: false)
             // Shows user-facing workspace todo controls that create checklist
             // items or set completion/status lanes. Hidden until the local
-            // beta setting opts in or the PostHog flag is enabled.
+            // beta setting opts in.
             CmuxFeatureFlagDefinition(
                 key: "workspace-todo-controls-enabled-release",
                 title: String(
@@ -255,7 +247,7 @@ final class CmuxFeatureFlags {
     }
 
     var isSimulatorEnabled: Bool {
-        effectiveValue(for: Self.allFlags[6])
+        effectiveValue(for: Self.simulatorFlag)
     }
 
     var isWorkspaceTodoControlsEnabled: Bool {
@@ -291,42 +283,29 @@ final class CmuxFeatureFlags {
     @ObservationIgnored
     private let defaults: UserDefaults
     @ObservationIgnored
-    private let remoteFlagValueProvider: (String) -> Any?
-    @ObservationIgnored
 
     private var localOverridesByKey: [String: Bool] = [:]
-    private var remoteValuesByKey: [String: Bool] = [:]
     private var resolutionsByKey: [String: CmuxFeatureFlagResolution] = [:]
 
     init(
         defaults: UserDefaults = .standard,
-        remoteFlagValueProvider: @escaping (String) -> Any? = { _ in nil },
         publishesOffMainSnapshot: Bool = false
     ) {
         self.defaults = defaults
         self.publishesOffMainSnapshot = publishesOffMainSnapshot
-        self.remoteFlagValueProvider = remoteFlagValueProvider
         localOverridesByKey = Self.allFlags.reduce(into: [:]) { values, definition in
             if let value = Self.storedOverrideValue(for: definition.key, defaults: defaults) {
                 values[definition.key] = value
             }
         }
-        remoteValuesByKey = Self.allFlags.reduce(into: [:]) { values, definition in
-            if let value = Self.storedBoolValue(
-                forKey: Self.remoteCacheKey(for: definition.key),
-                defaults: defaults
-            ) {
-                values[definition.key] = value
-            }
+        for definition in Self.allFlags {
+            defaults.removeObject(forKey: Self.legacyRemoteCacheKey(for: definition.key))
         }
         recomputeEffectiveValues()
     }
 
-    /// Loads release-control values without initializing analytics. The request
-    /// uses a separate anonymous installation identity only when telemetry is
-    /// enabled. Opted-out launches use one product-wide ID without targeting
-    /// properties, preserving a non-identifying emergency kill switch.
-    /// zerocmux: no remote flag refresh; flags are local-only.
+    /// Retained as a no-op for callers shared with upstream builds. zerocmux
+    /// never starts a remote feature-flag client.
     func start() {}
 
 
@@ -344,7 +323,6 @@ final class CmuxFeatureFlags {
 
     func resolution(for definition: CmuxFeatureFlagDefinition) -> CmuxFeatureFlagResolution {
         resolutionsByKey[definition.key] ?? CmuxFeatureFlagResolution(
-            remoteValue: remoteValuesByKey[definition.key],
             overrideValue: localOverridesByKey[definition.key],
             defaultValue: definition.defaultWhenUnavailable
         )
@@ -354,13 +332,7 @@ final class CmuxFeatureFlags {
         localOverridesByKey[definition.key]
     }
 
-    func remoteValue(for definition: CmuxFeatureFlagDefinition) -> Bool? {
-        remoteValuesByKey[definition.key]
-    }
-
     func setOverride(_ value: Bool?, for definition: CmuxFeatureFlagDefinition) {
-        guard value == nil || remoteValuesByKey[definition.key] == nil else { return }
-
         let previousResolutions = resolutionsByKey
         if let value {
             localOverridesByKey[definition.key] = value
@@ -387,25 +359,9 @@ final class CmuxFeatureFlags {
         postChangeIfNeeded(previousResolutions: previousResolutions)
     }
 
-    func applyLoadedFlags() {
-        let previousResolutions = resolutionsByKey
-        for definition in Self.allFlags {
-            if let value = Self.coerceBoolFlagValue(remoteFlagValueProvider(definition.key)) {
-                remoteValuesByKey[definition.key] = value
-                defaults.set(value, forKey: Self.remoteCacheKey(for: definition.key))
-            } else if remoteValuesByKey[definition.key] == true {
-                remoteValuesByKey.removeValue(forKey: definition.key)
-                defaults.removeObject(forKey: Self.remoteCacheKey(for: definition.key))
-            }
-        }
-        recomputeEffectiveValues()
-        postChangeIfNeeded(previousResolutions: previousResolutions)
-    }
-
     private func recomputeEffectiveValues() {
         resolutionsByKey = Self.allFlags.reduce(into: [:]) { values, definition in
             values[definition.key] = CmuxFeatureFlagResolution(
-                remoteValue: remoteValuesByKey[definition.key],
                 overrideValue: localOverridesByKey[definition.key],
                 defaultValue: definition.defaultWhenUnavailable
             )
@@ -426,8 +382,8 @@ final class CmuxFeatureFlags {
         overrideKeyPrefix + key
     }
 
-    private static func remoteCacheKey(for key: String) -> String {
-        remoteCacheKeyPrefix + key
+    private static func legacyRemoteCacheKey(for key: String) -> String {
+        legacyRemoteCacheKeyPrefix + key
     }
 
     private static func storedOverrideValue(for key: String, defaults: UserDefaults) -> Bool? {
@@ -447,34 +403,6 @@ final class CmuxFeatureFlags {
         return nil
     }
 
-    nonisolated static func coerceBoolFlagValue(_ value: Any?, default fallback: Bool) -> Bool {
-        coerceBoolFlagValue(value) ?? fallback
-    }
-
-    nonisolated static func coerceBoolFlagValue(_ value: Any?) -> Bool? {
-        guard let value else { return nil }
-
-        if let boolValue = value as? Bool {
-            return boolValue
-        }
-
-        if let numberValue = value as? NSNumber {
-            return numberValue.boolValue
-        }
-
-        if let stringValue = value as? String {
-            switch stringValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-            case "true":
-                return true
-            case "false":
-                return false
-            default:
-                return nil
-            }
-        }
-
-        return nil
-    }
 }
 
 extension Notification.Name {

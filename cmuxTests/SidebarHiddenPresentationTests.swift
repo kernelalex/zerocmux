@@ -199,10 +199,7 @@ struct SidebarHiddenPresentationTests {
             forKey: CmuxExtensionSidebarSelection.defaultsKey
         )
 
-        let featureFlags = CmuxFeatureFlags(
-            defaults: defaults,
-            remoteFlagValueProvider: { _ in nil }
-        )
+        let featureFlags = CmuxFeatureFlags(defaults: defaults)
         featureFlags.setOverride(true, for: CmuxFeatureFlags.appKitSidebarListFlag)
 
         let tabManager = TabManager()

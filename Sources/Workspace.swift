@@ -12892,7 +12892,9 @@ extension Workspace: BonsplitDelegate {
             case .newAgentChat: performSurfaceTabBarNewAgentChatAction(presentingWindow: presentingWindow)
             case .cloudVM:
                 _ = AppDelegate.shared?.performCloudVMAction(tabManager: owningTabManager, preferredWindow: presentingWindow, debugSource: "surfaceTabBar.cloudVM")
-            case .newTerminal, .newBrowser, .newSimulator, .splitRight, .splitDown:
+            case .newSimulator:
+                _ = performNewSimulatorAction(inPane: pane)
+            case .newTerminal, .newBrowser, .splitRight, .splitDown:
                 break
             }
             return

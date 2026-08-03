@@ -3,6 +3,16 @@ import CmuxWorkspaces
 import Foundation
 
 extension Workspace {
+    /// Shared action path for Simulator creation from menus, shortcuts,
+    /// command-palette entries, and configured surface-tab buttons.
+    @discardableResult
+    func performNewSimulatorAction(inPane paneId: PaneID? = nil) -> Bool {
+        guard let targetPaneId = paneId ?? bonsplitController.focusedPaneId else {
+            return false
+        }
+        return newSimulatorSurface(inPane: targetPaneId, focus: true) != nil
+    }
+
     /// Returns whether a Simulator panel can accept at least one external file.
     /// Returns `nil` when the target panel is not a Simulator.
     func canHandleSimulatorExternalFileDrop(
