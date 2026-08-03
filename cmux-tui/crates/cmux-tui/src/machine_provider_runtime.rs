@@ -3878,7 +3878,13 @@ mod tests {
         let listener = socket.listener();
         let mut catalog = snapshot(1, "Existing", protocol::MachineStatus::Running);
         catalog.capabilities.connect_external_machine = true;
+        catalog.machines[0].connectable = true;
         let server_catalog = catalog;
+        // The retry's provider connection must outlive the runtime's
+        // post-enrollment refresh. Letting the server thread drop its socket
+        // as soon as the last scripted frame is served makes the refresh
+        // observe a disconnect on a scheduling race instead of completing.
+        let (release_retry_connection, retry_connection_released) = mpsc::sync_channel::<()>(1);
         let server = thread::spawn(move || {
             let first_mutation_id = {
                 let (mut stream, mut reader) = serve_initial_snapshot_with_capabilities(
@@ -3922,6 +3928,7 @@ mod tests {
                 ),
             );
             serve_runtime_refresh(&mut stream, &mut reader, &server_catalog, None);
+            let _ = retry_connection_released.recv();
         });
 
         let provider = ProviderMachineRuntime::connect(&socket.path, token()).unwrap();
@@ -3956,8 +3963,13 @@ mod tests {
         );
         controller.provider.reconnect_control().unwrap();
         let result = controller.perform_request(provider_connect("PAIR 4J7K")).unwrap();
+        drop(release_retry_connection);
 
-        assert!(result.ui.request.is_some());
+        assert!(
+            matches!(result.ui.request, Some(MachineRequest::Switch(_))),
+            "the accepted retry did not ask to open its enrolled machine: {:?}",
+            result.ui.request
+        );
         controller.close();
         server.join().unwrap();
     }
