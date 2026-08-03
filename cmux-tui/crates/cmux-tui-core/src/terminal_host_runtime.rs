@@ -425,7 +425,7 @@ mod unix {
     // The separate hard ceiling only bounds a client that keeps draining an
     // unusually fragmented final stream without ever going idle.
     const HOST_EXIT_STREAM_STALL_TIMEOUT: Duration = Duration::from_secs(2);
-    const HOST_EXIT_STREAM_HARD_TIMEOUT: Duration = Duration::from_secs(60);
+    const HOST_EXIT_STREAM_HARD_TIMEOUT: Duration = Duration::from_secs(120);
     const HOST_EXIT_STREAM_HARD_CLOSE_GRACE: Duration = Duration::from_millis(100);
     const HOST_EXIT_PERSIST_RETRY_MIN: Duration = Duration::from_millis(100);
     const HOST_EXIT_PERSIST_RETRY_MAX: Duration = Duration::from_secs(5);

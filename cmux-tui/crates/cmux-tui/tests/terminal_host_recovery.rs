@@ -654,11 +654,18 @@ fn exit_follows_all_final_pty_bytes_on_the_live_stream() {
     renderer.stream.set_read_timeout(Some(Duration::from_secs(15))).unwrap();
     write_frame(&mut renderer.stream, &Frame::new(MessageKind::Input, b"go\n".to_vec())).unwrap();
 
+    // Valgrind already slows the reader substantially; stacking the synthetic
+    // delay on top would turn this ordering regression into a performance test.
+    let reader_delay = if std::env::var_os("CMUX_TEST_TIMEOUT_SCALE").is_some() {
+        Duration::ZERO
+    } else {
+        Duration::from_millis(2)
+    };
     let mut output = Vec::new();
     loop {
         // Exercise the live-stream queue and teardown path with a client that
         // is making steady progress but cannot drain every frame immediately.
-        std::thread::sleep(Duration::from_millis(2));
+        std::thread::sleep(reader_delay);
         let frame = read_frame(&mut renderer.stream, MAX_FRAME_PAYLOAD)
             .unwrap()
             .expect("terminal host closed before sequenced Exit");
