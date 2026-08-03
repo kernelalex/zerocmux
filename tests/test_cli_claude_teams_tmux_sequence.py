@@ -340,8 +340,8 @@ tmux list-panes -t "$window_target" -F '#{pane_id}' > "$FAKE_PANE_LIST_LOG"
             return 1
 
         window_target = read_text(window_target_log)
-        if window_target != "cmux:1":
-            print(f"FAIL: expected tmux window target 'cmux:1', got {window_target!r}")
+        if window_target != "zerocmux:1":
+            print(f"FAIL: expected tmux window target 'zerocmux:1', got {window_target!r}")
             return 1
 
         split_pane = read_text(split_pane_log)

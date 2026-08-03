@@ -295,7 +295,7 @@ fs.writeFileSync(
         tmux_env_value = read_text(tmux_env_log)
         expected_pane_token = stable_tmux_numeric_id(FOCUSED_PANE_ID)
         expected_tmux = (
-            f"/tmp/cmux-claude-teams/{FOCUSED_WORKSPACE_ID},"
+            f"/tmp/zerocmux-claude-teams/{FOCUSED_WORKSPACE_ID},"
             f"{FOCUSED_WINDOW_ID},{expected_pane_token}"
         )
         if tmux_env_value != expected_tmux:

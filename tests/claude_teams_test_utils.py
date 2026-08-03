@@ -202,7 +202,7 @@ def install_pi_extension(config_dir: Path, cli_path: str | None = None) -> Path:
             f"exit={install.returncode} stdout={install.stdout!r} stderr={install.stderr!r}"
         )
 
-    extension_path = config_dir / "extensions" / "cmux-session.ts"
+    extension_path = config_dir / "extensions" / "zerocmux-session.ts"
     if not extension_path.exists():
         raise RuntimeError(f"expected extension at {extension_path}")
     override = os.environ.get("CMUX_TEST_PI_EXTENSION_OVERRIDE")

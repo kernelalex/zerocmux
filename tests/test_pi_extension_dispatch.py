@@ -1564,7 +1564,7 @@ await handlers.get("session_shutdown")({ reason: "quit" }, ctx);
         if any("hooks pi notification" in line for line in calls):
             print(f"FAIL: terminal-feed {label} failure emitted a completion notification: {calls!r}")
             return 1
-        if '"message":"cmux hook command failed"' not in result.stderr:
+        if '"message":"zerocmux hook command failed"' not in result.stderr:
             print(f"FAIL: failed terminal-feed {label} delivery was not surfaced: {result.stderr!r}")
             return 1
 
@@ -1752,7 +1752,7 @@ console.log(`ordered_completion_ms=${performance.now() - startedAt}`);
             f"{ordered_calls!r}"
         )
         return 1
-    if '"message":"cmux hook command failed"' in ordered.stderr:
+    if '"message":"zerocmux hook command failed"' in ordered.stderr:
         print(f"FAIL: late successful terminal Feed result was marked failed: {ordered.stderr!r}")
         return 1
 
@@ -1841,7 +1841,7 @@ console.log(`completion_ms=${performance.now() - startedAt}`);
     if any("hooks pi notification" in line for line in deadline_calls):
         print(f"FAIL: terminal-feed drain deadline emitted a completion notification: {deadline_calls!r}")
         return 1
-    if '"message":"cmux hook command failed"' not in deadline.stderr:
+    if '"message":"zerocmux hook command failed"' not in deadline.stderr:
         print(f"FAIL: terminal-feed drain deadline was not surfaced: {deadline.stderr!r}")
         return 1
 
@@ -2434,7 +2434,7 @@ await handlers.get("session_shutdown")({ reason: "quit" }, ctx);
     if len(stale_calls) != 1:
         print(f"FAIL: stale CMUX_SURFACE_ID was retried after its first permanent failure: {stale_calls!r}")
         return 1
-    warning_count = stale.stderr.count('"source":"cmux-pi-extension"')
+    warning_count = stale.stderr.count('"source":"zerocmux-pi-extension"')
     if warning_count != 1:
         print(f"FAIL: stale surface emitted {warning_count} warnings instead of one: {stale.stderr!r}")
         return 1

@@ -149,7 +149,7 @@ def main() -> int:
             return 1
 
         extension_path.write_text(
-            "// cmux-pi-session-extension-marker v2\n"
+            "// zerocmux-pi-session-extension-marker v2\n"
             "// stale managed fixture using synchronous hook dispatch\n"
             'import { spawnSync } from "node:child_process";\n',
             encoding="utf-8",
@@ -216,7 +216,7 @@ def main() -> int:
             return 1
 
         extension_path.write_text(
-            "// cmux-pi-session-extension-marker v2\n// stale managed race fixture\n",
+            "// zerocmux-pi-session-extension-marker v2\n// stale managed race fixture\n",
             encoding="utf-8",
         )
         lock_path = extension_path.parent / ".cmux-session.lock"
@@ -251,7 +251,7 @@ def main() -> int:
         extension_path = install_pi_extension(config_dir, cli_path)
         extension_text = extension_path.read_text(encoding="utf-8")
         extension_path.write_text(
-            "// cmux-pi-session-extension-marker v2\n// stale uninstall race fixture\n",
+            "// zerocmux-pi-session-extension-marker v2\n// stale uninstall race fixture\n",
             encoding="utf-8",
         )
         with lock_path.open("a", encoding="utf-8") as lock:
@@ -304,7 +304,7 @@ def main() -> int:
         extension_text = extension_path.read_text(encoding="utf-8")
 
         stale_symlink_fixture = (
-            "// cmux-pi-session-extension-marker v2\n"
+            "// zerocmux-pi-session-extension-marker v2\n"
             "// stale lock symlink fixture\n"
         )
         extension_path.write_text(stale_symlink_fixture, encoding="utf-8")
