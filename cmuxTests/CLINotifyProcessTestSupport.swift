@@ -448,4 +448,132 @@ extension CLINotifyProcessIntegrationRegressionTests {
             timedOut: timedOut
         )
     }
+
+    // MARK: - Removed hosted surfaces
+
+    /// zerocmux ships without the hosted web backend, so every verb that used to
+    /// reach it (`auth` / `login` / `logout`, `vm` / `cloud`, and the VM attach
+    /// entrypoints) is answered locally by `hostedServicesUnavailable`. These
+    /// helpers pin that replacement contract for both test files that cover it.
+    static let hostedServicesUnavailableMessage =
+        "Hosted auth and Cloud VM services are not available in zerocmux "
+        + "because the web backend has been removed."
+
+    /// Runs `zerocmux <arguments>` against a mock socket that records every byte
+    /// the CLI sends, and returns the process result plus that traffic.
+    func runRemovedHostedVerb(
+        _ arguments: [String],
+        socketLabel: String
+    ) throws -> (result: ProcessRunResult, socketTraffic: [String]) {
+        let cliPath = try bundledCLIPath()
+        let socketPath = makeSocketPath(socketLabel)
+        let listenerFD = try bindUnixSocket(at: socketPath)
+        let state = MockSocketServerState()
+
+        defer {
+            Darwin.close(listenerFD)
+            unlink(socketPath)
+        }
+
+        // Deliberately not waited on: a correct fork build never connects, so
+        // the accept loop stays parked until the deferred close tears it down.
+        _ = startMockServer(listenerFD: listenerFD, state: state) { line in
+            guard let payload = self.jsonObject(line),
+                  let id = payload["id"] as? String else {
+                return self.malformedRequestResponse(raw: line)
+            }
+            return self.v2Response(id: id, ok: true, result: [:])
+        }
+
+        var environment = ProcessInfo.processInfo.environment
+        environment["CMUX_SOCKET_PATH"] = socketPath
+        environment["CMUX_CLI_SENTRY_DISABLED"] = "1"
+
+        let result = runProcess(
+            executablePath: cliPath,
+            arguments: arguments,
+            environment: environment,
+            timeout: 5
+        )
+        XCTAssertFalse(result.timedOut, result.stderr)
+        return (result, state.commands)
+    }
+
+    /// Asserts the fork answers `arguments` with the removed-service refusal:
+    /// a recognized verb, a non-zero status carrying the explanation, and no
+    /// socket conversation at all.
+    func assertHostedServicesUnavailable(
+        _ arguments: [String],
+        socketLabel: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws {
+        let (result, socketTraffic) = try runRemovedHostedVerb(arguments, socketLabel: socketLabel)
+        let rendered = arguments.joined(separator: " ")
+
+        XCTAssertEqual(
+            result.status,
+            1,
+            "`zerocmux \(rendered)` should fail with the removed-service status, "
+                + "not \(result.status). stderr=\(result.stderr)",
+            file: file,
+            line: line
+        )
+        XCTAssertTrue(
+            result.stderr.contains(Self.hostedServicesUnavailableMessage),
+            "expected the removed-service explanation, got \(result.stderr)",
+            file: file,
+            line: line
+        )
+        // Status 2 is the unknown-command status. Asserting the verb does not
+        // land there is what proves it is still wired up and explained rather
+        // than silently deleted along with the backend.
+        XCTAssertFalse(
+            result.stderr.contains("Unknown command"),
+            "`\(rendered)` must stay a recognized verb, got \(result.stderr)",
+            file: file,
+            line: line
+        )
+        XCTAssertEqual(
+            socketTraffic,
+            [],
+            "removed hosted verbs must resolve locally without socket traffic, saw \(socketTraffic)",
+            file: file,
+            line: line
+        )
+    }
+
+    // MARK: - SSH startup script decoding
+
+    /// SSH terminal startup commands wrap their real script in nested
+    /// `printf %s <base64>` layers. `VMSSHCommandTests` asserts on the decoded
+    /// script, so unwrap up to four layers before comparing.
+    func decodedReusableShellStartupCommand(_ command: String) -> String {
+        var decoded = command
+        for _ in 0..<4 {
+            let next = decodedSingleEmbeddedStartupScript(decoded)
+            guard next != decoded else {
+                return decoded
+            }
+            decoded = next
+        }
+        return decoded
+    }
+
+    private func decodedSingleEmbeddedStartupScript(_ command: String) -> String {
+        guard let marker = command.range(of: "printf %s ") else {
+            return command
+        }
+        let suffix = command[marker.upperBound...]
+        guard let end = suffix.firstIndex(where: { $0 == " " || $0 == "\n" || $0 == "'" }),
+              end > suffix.startIndex else {
+            return command
+        }
+        let encoded = String(suffix[..<end])
+        guard let data = Data(base64Encoded: encoded),
+              let decoded = String(data: data, encoding: .utf8) else {
+            return command
+        }
+        return decoded
+    }
 }
