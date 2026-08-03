@@ -13,7 +13,7 @@ struct TerminalSurfaceCommandShimPermissionsTests {
         )
         let temporaryDirectory = root.appending(path: "tmp", directoryHint: .isDirectory)
         let parentDirectory = temporaryDirectory.appending(
-            path: "cmux-cli-shims",
+            path: "zerocmux-cli-shims",
             directoryHint: .isDirectory
         )
         let surfaceId = UUID()
