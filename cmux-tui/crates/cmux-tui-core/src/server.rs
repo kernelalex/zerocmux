@@ -10077,6 +10077,26 @@ mod tests {
         Mux::new_for_test("test", SurfaceOptions::default())
     }
 
+    /// Reserve a unique socket path inside the short fallback runtime
+    /// directory, creating that directory the same way [`serve`] does.
+    ///
+    /// Tests that bind sockets directly cannot assume the directory already
+    /// exists: nothing else in the suite creates it, so relying on a leftover
+    /// directory makes the test depend on unrelated runs.
+    #[cfg(unix)]
+    fn reserve_fallback_socket_path(prefix: &str) -> PathBuf {
+        let dir = platform::fallback_runtime_dir();
+        std::fs::create_dir_all(&dir).expect("could not create the fallback runtime directory");
+        platform::restrict_directory(&dir)
+            .expect("could not restrict the fallback runtime directory");
+        let nonce =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let path =
+            dir.join(format!("{prefix}-{}-{}.sock", std::process::id(), nonce % 1_000_000_000));
+        let _ = std::fs::remove_file(&path);
+        path
+    }
+
     const PROVIDER_AUTHORITY: &str = "provider-workspace-authority-for-server-tests-00000001";
 
     fn provider_test_mux() -> Arc<Mux> {
@@ -13069,14 +13089,7 @@ mod tests {
             term.vt_write(b"history\r\n\x1b]133;A\x07prompt> \x1b[31");
         });
 
-        let nonce =
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-        let path = platform::fallback_runtime_dir().join(format!(
-            "write-eof-drain-{}-{}.sock",
-            std::process::id(),
-            nonce % 1_000_000_000
-        ));
-        let _ = std::fs::remove_file(&path);
+        let path = reserve_fallback_socket_path("write-eof-drain");
         let listener = transport::listen(&path).unwrap();
         let mut client = transport::connect(&path).unwrap();
         let server = listener.accept().unwrap();
@@ -13154,14 +13167,7 @@ mod tests {
             term.vt_write(b"\x1b]133;A\x07prompt> \x1b[31");
         });
 
-        let nonce =
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-        let path = platform::fallback_runtime_dir().join(format!(
-            "clear-concurrency-{}-{}.sock",
-            std::process::id(),
-            nonce % 1_000_000_000
-        ));
-        let _ = std::fs::remove_file(&path);
+        let path = reserve_fallback_socket_path("clear-concurrency");
         let listener = transport::listen(&path).unwrap();
         let mut client = transport::connect(&path).unwrap();
         let server = listener.accept().unwrap();
@@ -13228,14 +13234,7 @@ mod tests {
             term.vt_write(b"\x1b]133;A\x07prompt> \x1b[31");
         });
 
-        let nonce =
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-        let path = platform::fallback_runtime_dir().join(format!(
-            "clear-lifecycle-{}-{}.sock",
-            std::process::id(),
-            nonce % 1_000_000_000
-        ));
-        let _ = std::fs::remove_file(&path);
+        let path = reserve_fallback_socket_path("clear-lifecycle");
         let listener = transport::listen(&path).unwrap();
         let mut client = transport::connect(&path).unwrap();
         let server = listener.accept().unwrap();
