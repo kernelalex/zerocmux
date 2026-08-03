@@ -7,12 +7,8 @@ import Testing
 @MainActor
 @Suite struct DesktopNotificationAuthorizationModelLifecycleTests {
     @Test func startObservingSeedsCurrentStatusAndRefreshesHostAuthorization() {
-        let (mobileStream, _) = AsyncStream<MobilePairingStatusSnapshot>.makeStream()
         let (desktopStream, _) = AsyncStream<DesktopNotificationAuthorizationState>.makeStream()
-        let hostActions = CountingMobilePairingHostActions(
-            stream: mobileStream,
-            desktopStream: desktopStream
-        )
+        let hostActions = CountingDesktopNotificationHostActions(desktopStream: desktopStream)
         hostActions.desktopStatus = .authorized
         let model = DesktopNotificationAuthorizationModel(hostActions: hostActions)
 
@@ -25,12 +21,8 @@ import Testing
     }
 
     @Test func repeatedStartObservingRefreshesHostAuthorizationWithoutResubscribing() {
-        let (mobileStream, _) = AsyncStream<MobilePairingStatusSnapshot>.makeStream()
         let (desktopStream, _) = AsyncStream<DesktopNotificationAuthorizationState>.makeStream()
-        let hostActions = CountingMobilePairingHostActions(
-            stream: mobileStream,
-            desktopStream: desktopStream
-        )
+        let hostActions = CountingDesktopNotificationHostActions(desktopStream: desktopStream)
         hostActions.desktopStatus = .notDetermined
         let model = DesktopNotificationAuthorizationModel(hostActions: hostActions)
 
