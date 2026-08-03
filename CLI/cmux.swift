@@ -9609,7 +9609,7 @@ struct CMUXCLI {
             "  cmux_relay_terminal_connected_acknowledged=0",
             "  cmux_relay_terminal_connected_retry=0",
             "  while [ \"$cmux_relay_terminal_connected_retry\" -lt \(maximumAttempts) ]; do",
-            "    cmux_relay_cli=\"$HOME/.cmux/bin/cmux\"",
+            "    cmux_relay_cli=\"$HOME/.cmux/bin/zerocmux\"",
             "    if [ ! -x \"$cmux_relay_cli\" ]; then cmux_relay_cli=\"$(command -v zerocmux 2>/dev/null || true)\"; fi",
             "    if [ -n \"$cmux_relay_cli\" ] && env -u CMUX_SOCKET CMUXTERM_CLI_RESPONSE_TIMEOUT_SEC=0.5 CMUX_SOCKET_PATH=\"127.0.0.1:\(remoteRelayPort)\" \"$cmux_relay_cli\" rpc workspace.remote.terminal_session_connected \"$cmux_relay_terminal_connected\" >/dev/null 2>&1; then",
             "      cmux_relay_terminal_connected_acknowledged=1",

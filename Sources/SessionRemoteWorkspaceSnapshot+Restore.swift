@@ -346,7 +346,7 @@ extension SessionRemoteWorkspaceSnapshot {
             "  cmux_restore_terminal_connected_acknowledged=0",
             "  cmux_restore_terminal_connected_retry=0",
             "  while [ \"$cmux_restore_terminal_connected_retry\" -lt 4 ]; do",
-            "    cmux_restore_remote_cli=\"$HOME/.cmux/bin/cmux\"",
+            "    cmux_restore_remote_cli=\"$HOME/.cmux/bin/zerocmux\"",
             "    if [ ! -x \"$cmux_restore_remote_cli\" ]; then cmux_restore_remote_cli=\"$(command -v cmux 2>/dev/null || true)\"; fi",
             "    if [ -n \"$cmux_restore_remote_cli\" ] && env -u CMUX_SOCKET CMUXTERM_CLI_RESPONSE_TIMEOUT_SEC=0.5 CMUX_SOCKET_PATH=\"127.0.0.1:\(remoteRelayPort)\" \"$cmux_restore_remote_cli\" rpc workspace.remote.terminal_session_connected \"$cmux_restore_terminal_connected\" >/dev/null 2>&1; then",
             "      cmux_restore_terminal_connected_acknowledged=1",

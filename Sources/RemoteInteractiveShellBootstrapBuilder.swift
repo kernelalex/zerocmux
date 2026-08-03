@@ -247,7 +247,7 @@ enum RemoteInteractiveShellBootstrapBuilder {
         lines.append(contentsOf: RemoteShellEnvironment.utf8LocaleSetupLines())
         lines.append(contentsOf: shellExportLines(shellFeatures: shellFeatures))
         lines.append("export PATH=\"$HOME/.cmux/bin:$PATH\"")
-        lines.append("export CMUX_BUNDLED_CLI_PATH=\"$HOME/.cmux/bin/cmux\"")
+        lines.append("export CMUX_BUNDLED_CLI_PATH=\"$HOME/.cmux/bin/zerocmux\"")
         lines.append(
             "export CMUX_PERSISTENT_PTY_EXEC_HELPER=\"${CMUX_PERSISTENT_PTY_EXEC_HELPER:-$CMUX_BUNDLED_CLI_PATH}\""
         )
