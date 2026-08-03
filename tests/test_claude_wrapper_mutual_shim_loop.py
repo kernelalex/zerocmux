@@ -376,7 +376,7 @@ printf 'real claude reached %s\\n' "$*"
 def test_app_owned_resume_keeps_authorization_across_finite_shim_reentry(failures: list[str]) -> None:
     with tempfile.TemporaryDirectory(prefix="cmux-claude-restore-shim-chain-") as td:
         root = Path(td)
-        cmux_shim_dir = root / "tmp" / "cmux-cli-shims" / "surface-restore"
+        cmux_shim_dir = root / "tmp" / "zerocmux-cli-shims" / "surface-restore"
         foreign_shim_dir = root / "foreign-shim"
         real_dir = root / "real-bin"
         for directory in (cmux_shim_dir, foreign_shim_dir, real_dir):
@@ -393,7 +393,7 @@ exec claude "$@"
 """,
         )
         write_executable(
-            cmux_shim_dir / "cmux",
+            cmux_shim_dir / "zerocmux",
             """#!/usr/bin/env bash
 if [[ "${1:-}" == "--socket" ]]; then
   shift 2
