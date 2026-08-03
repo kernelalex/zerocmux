@@ -15,7 +15,7 @@ env:
 
 jobs:
   build-ghosttykit:
-    runs-on: depot-macos-26
+    runs-on: macos-latest
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -58,7 +58,12 @@ jobs:
           if [ -d "/Applications/Xcode.app/Contents/Developer" ]; then
             XCODE_DIR="/Applications/Xcode.app/Contents/Developer"
           else
-            XCODE_APP="$(ls -d /Applications/Xcode*.app 2>/dev/null | head -n 1 || true)"
+            XCODE_APP=""
+            for candidate in /Applications/Xcode*.app; do
+              [ -d "$candidate" ] || continue
+              XCODE_APP="$candidate"
+              break
+            done
             if [ -n "$XCODE_APP" ]; then
               XCODE_DIR="$XCODE_APP/Contents/Developer"
             else

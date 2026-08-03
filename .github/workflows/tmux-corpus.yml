@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   remote-daemon-fuzz:
-    runs-on: depot-ubuntu-24.04
+    runs-on: runs-on=${{ github.run_id }}-remote-daemon-fuzz/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -61,7 +61,7 @@ jobs:
 
   terminal-nightly:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: depot-macos-26
+    runs-on: macos-latest
     timeout-minutes: 30
     env:
       # XCTest app-host crashes can leave xcodebuild waiting in Swift's crash
@@ -154,7 +154,6 @@ jobs:
               -only-testing:cmuxTests/SessionPersistenceTests \
               test 2>&1 | tee /tmp/tmux-terminal-corpus-output.txt
           EXIT_CODE=${PIPESTATUS[0]}
-          OUTPUT=$(cat /tmp/tmux-terminal-corpus-output.txt)
           set -e
 
           if [ "$EXIT_CODE" -ne 0 ]; then

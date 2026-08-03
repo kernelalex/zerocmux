@@ -25,7 +25,7 @@ permissions:
 jobs:
   contract:
     name: protocol contract
-    runs-on: ${{ vars.LINUX_RUNNER || 'depot-ubuntu-24.04' }}
+    runs-on: runs-on=${{ github.run_id }}-sdk-contract/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -83,7 +83,7 @@ jobs:
   packages:
     name: ${{ matrix.language }} package
     needs: contract
-    runs-on: ${{ vars.LINUX_RUNNER || 'depot-ubuntu-24.04' }}
+    runs-on: runs-on=${{ github.run_id }}-sdk-package-${{ matrix.language }}/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 25
     strategy:
       fail-fast: false
@@ -259,7 +259,7 @@ jobs:
   consumers:
     name: ${{ matrix.language }} consumer
     needs: contract
-    runs-on: ${{ vars.LINUX_RUNNER || 'depot-ubuntu-24.04' }}
+    runs-on: runs-on=${{ github.run_id }}-sdk-consumer-${{ matrix.language }}/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 25
     strategy:
       fail-fast: false
@@ -420,7 +420,7 @@ jobs:
   conformance:
     name: seven-language live conformance
     needs: contract
-    runs-on: ${{ vars.LINUX_RUNNER || 'depot-ubuntu-24.04' }}
+    runs-on: runs-on=${{ github.run_id }}-sdk-conformance/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

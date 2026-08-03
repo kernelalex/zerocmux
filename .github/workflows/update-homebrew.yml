@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   update-cask:
-    runs-on: depot-ubuntu-24.04
+    runs-on: runs-on=${{ github.run_id }}-update-cask/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     # Only run if the release workflow succeeded (or manual trigger).
     if: >-
       github.event_name == 'workflow_dispatch' ||

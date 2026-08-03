@@ -1600,7 +1600,7 @@ final class WorkspaceChromeColorTests: XCTestCase {
 // equivalent coverage now lives in
 // Packages/macOS/CmuxWorkspaceWindow/Tests/CmuxWorkspaceWindowTests/WindowBackgroundPolicyTests.swift.
 // The stale app-side test was left referencing the removed symbols, which broke
-// the cmuxTests compile on the Swift 6 depot toolchain.
+// the cmuxTests compile on the Swift 6 CI toolchain.
 
 final class WorkspaceRemoteDaemonManifestTests: XCTestCase {
     func testParsesEmbeddedRemoteDaemonManifestJSON() throws {

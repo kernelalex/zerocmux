@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-# Pins the expensive macOS jobs and the release signing lanes to the sanctioned
-# Depot runners. This keeps those lanes from silently drifting back to
-# GitHub-hosted macos-* runners or onto other third-party/self-hosted
-# providers (warp-/blacksmith-) that the project no longer runs always-on CI on.
+# Pins macOS jobs to GitHub-hosted Apple Silicon and rejects legacy provider
+# labels. Linux jobs use self-contained RunsOn Flex labels.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -27,23 +25,33 @@ check_runner() {
   echo "PASS: $job uses $description"
 }
 
+if grep -R -n -E 'depot-|Depot' "$WORKFLOW_DIR"; then
+  echo "FAIL: workflows must not reference Depot after the RunsOn migration"
+  exit 1
+fi
+
 if grep -R -n -E 'runs-on:.*(warp-macos|blacksmith-)|os: (warp-macos|blacksmith-)' "$WORKFLOW_DIR"; then
-  echo "FAIL: always-on workflows must not hardcode warp-/blacksmith- runner labels (use Depot or GitHub-hosted runners)"
+  echo "FAIL: always-on workflows must not hardcode warp-/blacksmith- runner labels"
+  exit 1
+fi
+
+if grep -R -n -E 'runs-on:.*(extras=.*otel|/otel([/+]|$))' "$WORKFLOW_DIR"; then
+  echo "FAIL: RunsOn labels must not enable OTEL telemetry"
   exit 1
 fi
 
 # ci.yml jobs
-check_runner "$CI_FILE" "app-host-unit-tests" 'runs-on: depot-macos-26' "Depot macos-26"
-check_runner "$CI_FILE" "tests-build-and-lag" 'runs-on: depot-macos-26' "Depot macos-26"
-check_runner "$CI_FILE" "release-build" 'runs-on: depot-macos-26' "Depot macos-26"
-check_runner "$CI_FILE" "ui-regressions" 'runs-on: depot-macos-26' "Depot macos-26"
+check_runner "$CI_FILE" "app-host-unit-tests" 'runs-on: macos-latest' "GitHub-hosted macos-latest"
+check_runner "$CI_FILE" "tests-build-and-lag" 'runs-on: macos-latest' "GitHub-hosted macos-latest"
+check_runner "$CI_FILE" "release-build" 'runs-on: macos-latest' "GitHub-hosted macos-latest"
+check_runner "$CI_FILE" "ui-regressions" 'runs-on: macos-latest' "GitHub-hosted macos-latest"
 
 # build-ghosttykit.yml
-check_runner "$GHOSTTYKIT_FILE" "build-ghosttykit" 'runs-on: depot-macos-26' "Depot macos-26"
+check_runner "$GHOSTTYKIT_FILE" "build-ghosttykit" 'runs-on: macos-latest' "GitHub-hosted macos-latest"
 
 # ci-macos-compat.yml uses matrix.os.
-check_runner "$COMPAT_FILE" "compat-tests" 'os: depot-macos-26' "Depot macos-26"
+check_runner "$COMPAT_FILE" "compat-tests" 'os: macos-latest' "GitHub-hosted macos-latest"
 
 # release.yml jobs
-check_runner "$RELEASE_FILE" "build-ghostty-cli-helper" 'runs-on: depot-macos-26' "Depot macos-26"
-check_runner "$RELEASE_FILE" "build-sign-notarize" 'runs-on: depot-macos-26' "Depot macos-26"
+check_runner "$RELEASE_FILE" "build-ghostty-cli-helper" 'runs-on: macos-latest' "GitHub-hosted macos-latest"
+check_runner "$RELEASE_FILE" "build-sign-notarize" 'runs-on: macos-latest' "GitHub-hosted macos-latest"

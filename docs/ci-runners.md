@@ -1,109 +1,63 @@
 # CI runners
 
-Always-on CI runs on Depot and GitHub-hosted runners only. Linux x64 jobs use
-`depot-ubuntu-24.04`; macOS jobs use `depot-macos-26` for every lane, including
-`release-build` in `ci.yml` and release signing in `release.yml`. No Linux ARM
-lane exists today; when one is added it should use `depot-ubuntu-24.04-arm-4`.
-The `ci-macos-compat.yml` matrix runs its single row on `depot-macos-26`
-(restore a spread if older-OS coverage becomes available on Depot), and
-`cmux-tui.yml` keeps its Windows-experimental lane on GitHub-hosted
-`windows-latest` (no Depot mapping requested for Windows). `warp-*` and
-`blacksmith-*` labels are never used for always-on lanes and remain manual
-break-glass or `workflow_dispatch` choices only.
+Always-on Linux CI runs on RunsOn Flex instances launched in the project's AWS
+account. macOS CI runs on GitHub-hosted `macos-latest` runners because RunsOn
+does not currently support macOS. The experimental Windows lane remains on
+GitHub-hosted `windows-latest`.
 
-A few lanes route through repository variables so a runner type can be
-switched with a single variable update that takes effect on the next workflow
-run, with no PR or commit:
+## RunsOn Flex configuration
 
-| Variable | Used by | Fallback baked into the workflow |
-| ------------------- | ---------------------------------------------------------- | -------------------------------- |
-| `LINUX_RUNNER`      | `ci.yml` `linux-preflight`, the `cmux-tui.yml` Linux lanes, and the `cmux-tui-sdks.yml` / `cmux-tui-spec.yml` jobs | `depot-ubuntu-24.04` |
-| `MACOS_RUNNER_15`   | manual `test-e2e.yml` / `perf-activation.yml` `auto` runs; the `cmux-tui.yml` macOS row | `depot-macos-26` |
-| `MACOS_RUNNER_DUAL_XCODE` | `ci.yml` `swift-package-tests` (builds the SDK 15 Ghostty CLI helper, then runs the SDK 26 package tests in the same job) | `depot-macos-26` |
+Every Linux workflow carries a self-contained Flex request:
 
-Workflows reference them as
-`runs-on: ${{ vars.LINUX_RUNNER || 'depot-ubuntu-24.04' }}`. If a variable is
-unset the job uses the fallback, so CI is never broken by a missing variable.
+- Ubuntu 24.04 x64
+- 4 vCPUs
+- `c7a`, `c7i`, `m7a`, or `m7i` instance families
+- 100 GB gp3 storage
+- price-capacity-optimized Spot, with RunsOn's default on-demand interruption
+  retry
+- default SSH-disabled behavior
 
-The remaining `ci.yml` jobs are deliberately hard-pinned to Depot labels:
-`workflow-guard-tests`, `app-host-unit-tests`, `tests-build-and-lag`,
-`ui-regressions`, and `release-build` on `depot-macos-26`; and the Linux jobs
-(`changes`, `remote-daemon-tests`, `react-apps-check`, `diff-sidecar-check`,
-`tests`, `agent-session-web-resources`, `ci-status`) on `depot-ubuntu-24.04`.
-There is no standalone `release-ghostty-cli-helper` job in `ci.yml` — the
-Ghostty CLI helper is built inside `swift-package-tests` there, and by
-`build-ghostty-cli-helper` in `release.yml`.
+No RunsOn extras are enabled. In particular, `otel` must remain disabled to
+preserve the project's zero-telemetry policy. The repository continues to use
+its explicit GitHub Actions caches; enabling RunsOn cache extras can be
+considered separately after the base migration is stable.
 
-## Break-glass: switch a runner type off Depot
+Workflows request the shape through a single opaque label:
 
-We do not auto-overflow. If Depot is genuinely down or queuing for minutes
-(not a sub-minute queue), manually flip the affected variable to an explicit
-cloud label; revert it once Depot recovers. Use Depot (default):
-
-```bash
-gh variable set LINUX_RUNNER            --repo kernelalex/zerocmux -b depot-ubuntu-24.04
-gh variable set MACOS_RUNNER_15         --repo kernelalex/zerocmux -b depot-macos-26
-gh variable set MACOS_RUNNER_DUAL_XCODE --repo kernelalex/zerocmux -b depot-macos-26
+```yaml
+runs-on: runs-on=${{ github.run_id }}-job-name/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
 ```
 
-Break-glass a type to another cloud provider only when Depot is down or
-queuing for minutes. **Set an explicit cloud label.** Never set any runner
-variable to a fleet/self-hosted label.
+Every job uses a distinct suffix. Matrix jobs also include the matrix value so
+GitHub cannot assign one shard to a runner created for another shard.
 
-```bash
-gh variable set LINUX_RUNNER    --repo kernelalex/zerocmux -b warp-ubuntu-latest-x64-4x
-gh variable set MACOS_RUNNER_15 --repo kernelalex/zerocmux -b warp-macos-15-arm64-6x
-```
+The shape is inline because this repository is public: RunsOn reads a public
+repository's `.github/runs-on.yml` only from the default branch, so a new named
+runner would not be available to the migration PR itself. A reusable definition
+can replace the inline constraints after it exists on the default branch.
 
-Check current values:
+The RunsOn stack is expected to use the default `production` environment. If
+multiple RunsOn stacks listen to this repository, add an explicit `region=` or
+`env=` constraint to every label so only one stack handles each request.
 
-```bash
-gh variable list --repo kernelalex/zerocmux
-```
+## macOS lanes
 
-## Manual runs
+Required macOS jobs are pinned directly to `macos-latest`, which currently maps
+to the GitHub-hosted macOS 26 ARM64 image. This avoids the repository's
+historical self-hosted `macos-26` label collision. The compatibility lane
+asserts the expected architecture and OS major at runtime.
 
-`perf-activation.yml` and `test-e2e.yml` keep a `runner` choice input that
-defaults to `auto`. Manual `auto` runs follow `MACOS_RUNNER_15` then the
-`depot-macos-26` fallback, so flipping the repo variable redirects those
-workflows. An explicit manual choice wins over the variable; both dropdowns
-expose `depot-macos-*` and Warp choices, with a Depot identity guard for
-GUI-activation runs. `test-e2e.yml` also exposes `tart-canary`, `tart-dual`,
-and `tart-small` for targeted isolated-VM validation. These choices are
-available only through `workflow_dispatch`; no always-on lane uses them.
+`perf-activation.yml` and `test-e2e.yml` default their `auto` choice to
+`macos-latest`. They retain explicit Warp and Tart choices for manual
+diagnostics only. `reload-build.yml` also defaults to `macos-latest`, but its
+free-form input may intentionally target a development runner.
 
-## Guards
+## Policy checks
 
-Two guard tests (both run by the `workflow-guard-tests` job) enforce the
-policy:
+`tests/test_ci_self_hosted_guard.sh` rejects legacy provider labels in workflows,
+pins the required macOS and release lanes to `macos-latest`, and rejects OTEL
+in RunsOn labels. `tests/test_ci_release_sdk_lane.sh` keeps the
+release helper and SDK build lanes on the same macOS 26 image.
 
-- `tests/test_ci_self_hosted_guard.sh` pins the expensive macOS lanes to the
-  sanctioned Depot runner: `app-host-unit-tests`, `tests-build-and-lag`,
-  `ui-regressions`, and `release-build` in `ci.yml`, `build-ghosttykit` in
-  `build-ghosttykit.yml`, the `ci-macos-compat.yml` matrix row, and
-  `build-ghostty-cli-helper` plus `build-sign-notarize` in `release.yml`, all
-  on `depot-macos-26`. It also fails CI if any always-on workflow hardcodes a
-  `warp-*` or `blacksmith-*` runner label — those providers stay manual
-  break-glass only.
-- `tests/test_ci_release_sdk_lane.sh` pins the release helper handoff lanes
-  (`build-ghostty-cli-helper` in `release.yml`, `release-build` and the
-  dual-Xcode `swift-package-tests` fallback in `ci.yml`) to `depot-macos-26`.
-
-Keep new labels in `.github/actionlint.yaml`.
-
-## No self-hosted mac-mini fleet in CI
-
-We do not route CI to the persistent self-hosted mac-mini fleet
-(`zerocmux-mac-mini`, `studio1`, `mac4-cmuxvnc*`, `zerocmux-austin-mini-*`) for
-any job. Those minis carry labels that collide with cloud labels (notably
-`macos-26` and `warp-macos-26-arm64-6x`), and GitHub prefers a matching
-self-hosted runner, so a required job could silently land on a mini that cannot
-foreground a GUI app. It stays `Running Background`, breaking key-window,
-pasteboard, IME, and XCUITest behavior. Every macOS lane therefore routes to
-Depot or a GitHub-hosted runner, and the guard above fails CI if an always-on
-workflow hardcodes a third-party self-hosted-colliding label.
-
-Residual: the guard checks workflow literals, not repo-variable values. Do not
-set `MACOS_RUNNER_*` / `LINUX_RUNNER` to a self-hosted label; keep them on
-Depot. Fully closing the variable-value path requires removing the colliding
-labels from the minis (runner-side, needs org/runner admin).
+Keep manual self-hosted labels in `.github/actionlint.yaml`. GitHub-hosted
+labels and RunsOn's opaque labels do not need entries there.

@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   inventory:
-    runs-on: ${{ vars.LINUX_RUNNER || 'depot-ubuntu-24.04' }}
+    runs-on: runs-on=${{ github.run_id }}-tui-spec-inventory/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

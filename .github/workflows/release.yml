@@ -18,7 +18,7 @@ jobs:
   # links against current SDKs; the old SDK-15 pin was a zig 0.15.2 limit)
   # and installed into the app as a prebuilt artifact (mirrors ci.yml).
   build-ghostty-cli-helper:
-    runs-on: depot-macos-26
+    runs-on: macos-latest
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -63,7 +63,7 @@ jobs:
 
   build-sign-notarize:
     needs: build-ghostty-cli-helper
-    runs-on: depot-macos-26
+    runs-on: macos-latest
     environment: release
     timeout-minutes: 120
     steps:
@@ -143,7 +143,12 @@ jobs:
           if [ -d "/Applications/Xcode.app/Contents/Developer" ]; then
             XCODE_DIR="/Applications/Xcode.app/Contents/Developer"
           else
-            XCODE_APP="$(ls -d /Applications/Xcode*.app 2>/dev/null | head -n 1 || true)"
+            XCODE_APP=""
+            for candidate in /Applications/Xcode*.app; do
+              [ -d "$candidate" ] || continue
+              XCODE_APP="$candidate"
+              break
+            done
             if [ -n "$XCODE_APP" ]; then
               XCODE_DIR="$XCODE_APP/Contents/Developer"
             else

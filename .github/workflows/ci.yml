@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   changes:
-    runs-on: depot-ubuntu-24.04
+    runs-on: runs-on=${{ github.run_id }}-changes/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 5
     outputs:
       macos: ${{ steps.detect.outputs.macos }}
@@ -84,7 +84,7 @@ jobs:
             --head-sha "$HEAD_SHA"
 
   workflow-guard-tests:
-    runs-on: depot-macos-26
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -272,7 +272,7 @@ jobs:
   remote-daemon-tests:
     needs: changes
     if: ${{ needs.changes.outputs.go == 'true' }}
-    runs-on: depot-ubuntu-24.04
+    runs-on: runs-on=${{ github.run_id }}-remote-daemon-tests/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -295,7 +295,7 @@ jobs:
   react-apps-check:
     needs: changes
     if: ${{ needs.changes.outputs.web == 'true' }}
-    runs-on: depot-ubuntu-24.04
+    runs-on: runs-on=${{ github.run_id }}-react-apps-check/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -329,7 +329,7 @@ jobs:
     needs: changes
     # Generated protocol and streaming benchmarks also cover webview-only diffs.
     if: ${{ needs.changes.outputs.macos == 'true' || needs.changes.outputs.web == 'true' }}
-    runs-on: depot-ubuntu-24.04
+    runs-on: runs-on=${{ github.run_id }}-diff-sidecar-check/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -375,10 +375,9 @@ jobs:
     if: ${{ !cancelled() && needs.changes.result == 'success' && needs.linux-preflight.result == 'success' && needs.changes.outputs.macos == 'true' }}
     name: app-host unit tests (${{ matrix.shard }}/4)
     # App-host XCTest needs a runner that can broker testmanagerd control
-    # sessions. Validated head-to-head that depot-macos-26 runs the
-    # full app-host suite with 0 unexpected failures, identical to warp-15, so
-    # route through the shared MACOS_RUNNER_15 var like the other macOS jobs.
-    runs-on: depot-macos-26
+    # sessions. Keep this lane on a clean, ephemeral GitHub-hosted Apple
+    # Silicon runner.
+    runs-on: macos-latest
     timeout-minutes: 75
     strategy:
       fail-fast: false
@@ -1028,7 +1027,7 @@ jobs:
       - swift-package-tests
       - agent-session-web-resources
     if: ${{ always() }}
-    runs-on: depot-ubuntu-24.04
+    runs-on: runs-on=${{ github.run_id }}-tests/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 5
     steps:
       - name: Check app-host unit test routing
@@ -1093,7 +1092,7 @@ jobs:
     # Xcode. The old dual-Xcode SDK-15 helper pin existed for zig 0.15.2's
     # MachO linker; zig 0.16 links against current SDKs, and the helper's
     # macOS support floor is asserted via LC_BUILD_VERSION minos below.
-    runs-on: depot-macos-26
+    runs-on: macos-latest
     # A hung Remote* suite costs one 5-minute alarm + retry; leave headroom.
     timeout-minutes: 40
     env:
@@ -1309,7 +1308,7 @@ jobs:
   agent-session-web-resources:
     needs: changes
     if: ${{ needs.changes.outputs.agent_session_web == 'true' }}
-    runs-on: depot-ubuntu-24.04
+    runs-on: runs-on=${{ github.run_id }}-agent-session-web-resources/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -1336,7 +1335,7 @@ jobs:
       - diff-sidecar-check
       - agent-session-web-resources
     if: ${{ always() }}
-    runs-on: ${{ vars.LINUX_RUNNER || 'depot-ubuntu-24.04' }}
+    runs-on: runs-on=${{ github.run_id }}-linux-preflight/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 5
     steps:
       - name: Check cheap CI layer before macOS runners
@@ -1409,7 +1408,7 @@ jobs:
     # Keep lag validation separate from UI regressions so functional UI failures
     # and performance regressions stay isolated. Broader interactive UI suites
     # still run via test-e2e.yml on GitHub-hosted runners.
-    runs-on: depot-macos-26
+    runs-on: macos-latest
     # A cold DerivedData cache (any project.pbxproj or Package.resolved change
     # mints a new cache key with no restore-keys fallback) forces a full
     # zerocmux build whose Swift codegen alone can run 20+ min. Project/package
@@ -1420,31 +1419,6 @@ jobs:
       CMUX_CI_XCODE_APP: ${{ vars.CMUX_CI_XCODE_APP_MACOS_26 }}
       CMUX_CI_REQUIRED_MACOS_SDK_MAJOR: "26"
     steps:
-      - name: Validate display runner identity
-        env:
-          REQUESTED_RUNNER: macos-latest
-          RUNNER_CONTEXT_NAME: ${{ runner.name }}
-        run: |
-          set -euo pipefail
-          echo "Requested runner: $REQUESTED_RUNNER"
-          case "$REQUESTED_RUNNER" in
-            depot-*)
-              case "$RUNNER_CONTEXT_NAME" in
-                depot-*)
-                  echo "Resolved runner matches depot-*? yes"
-                  ;;
-                *)
-                  echo "Resolved runner matches depot-*? no"
-                  echo "::error::$REQUESTED_RUNNER resolved outside Depot. Remove $REQUESTED_RUNNER from non-Depot self-hosted runners or choose a different runner."
-                  exit 1
-                  ;;
-              esac
-              ;;
-            *)
-              echo "Display runner is not Depot; skipping Depot identity guard"
-              ;;
-          esac
-
       - name: Clear stale git locks (self-hosted reused workspace)
         shell: bash
         run: |
@@ -1748,9 +1722,8 @@ jobs:
     # Keep the app build on macOS 26 so SDK-gated SwiftUI Liquid Glass code
     # compiles into the same artifact shape as nightly and stable releases.
     # Release builds need enough disk for a universal Release build plus the
-    # restored SwiftPM cache. Default to a clean paid macOS 26 runner instead
-    # of the generic persistent macOS 26 pool.
-    runs-on: depot-macos-26
+    # restored SwiftPM cache. Use a clean GitHub-hosted Apple Silicon runner.
+    runs-on: macos-latest
     timeout-minutes: 60
     env:
       CMUX_CI_XCODE_APP: ${{ vars.CMUX_CI_XCODE_APP_MACOS_26 }}
@@ -1907,36 +1880,11 @@ jobs:
   ui-regressions:
     needs: changes
     if: ${{ needs.changes.outputs.macos == 'true' }}
-    runs-on: depot-macos-26
+    runs-on: macos-latest
     # Cold builds after project/package changes can spend more than 25 minutes
     # in build-for-testing before the UI regression script starts.
     timeout-minutes: 45
     steps:
-      - name: Validate display runner identity
-        env:
-          REQUESTED_RUNNER: macos-latest
-          RUNNER_CONTEXT_NAME: ${{ runner.name }}
-        run: |
-          set -euo pipefail
-          echo "Requested runner: $REQUESTED_RUNNER"
-          case "$REQUESTED_RUNNER" in
-            depot-*)
-              case "$RUNNER_CONTEXT_NAME" in
-                depot-*)
-                  echo "Resolved runner matches depot-*? yes"
-                  ;;
-                *)
-                  echo "Resolved runner matches depot-*? no"
-                  echo "::error::$REQUESTED_RUNNER resolved outside Depot. Remove $REQUESTED_RUNNER from non-Depot self-hosted runners or choose a different runner."
-                  exit 1
-                  ;;
-              esac
-              ;;
-            *)
-              echo "Display runner is not Depot; skipping Depot identity guard"
-              ;;
-          esac
-
       - name: Clear stale git locks (self-hosted reused workspace)
         shell: bash
         run: |
@@ -2416,7 +2364,7 @@ jobs:
       - release-build
       - ui-regressions
     if: ${{ always() }}
-    runs-on: depot-ubuntu-24.04
+    runs-on: runs-on=${{ github.run_id }}-ci-status/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     steps:
       - name: Check routed CI jobs
         env:

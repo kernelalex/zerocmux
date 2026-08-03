@@ -9,16 +9,14 @@ on:
         required: false
         default: ""
       runner:
-        description: macOS runner (auto follows MACOS_RUNNER_15, default depot-macos-26; pick warp-/depot-* to override)
+        description: macOS runner (auto uses GitHub-hosted macOS 26; choose Warp explicitly to override)
         required: false
         default: auto
         type: choice
         options:
           - auto
-          - depot-macos-26
+          - macos-latest
           - warp-macos-15-arm64-6x
-          - depot-macos-latest
-          - depot-macos-14
       workspace_count:
         description: Fixture workspace count
         required: false
@@ -42,7 +40,7 @@ concurrency:
 
 jobs:
   activation_changes:
-    runs-on: depot-ubuntu-24.04
+    runs-on: runs-on=${{ github.run_id }}-activation-changes/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 5
     outputs:
       macos: ${{ steps.detect.outputs.macos }}
@@ -64,9 +62,11 @@ jobs:
         run: |
           set -euo pipefail
           emit_all_areas() {
-            echo "macos=true" >> "$GITHUB_OUTPUT"
-            echo "web=true" >> "$GITHUB_OUTPUT"
-            echo "go=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "macos=true"
+              echo "web=true"
+              echo "go=true"
+            } >> "$GITHUB_OUTPUT"
           }
 
           if [ "$EVENT_NAME" = "pull_request" ]; then
@@ -105,30 +105,11 @@ jobs:
   activation-session-benchmark:
     needs: activation_changes
     if: ${{ needs.activation_changes.outputs.macos == 'true' }}
-    runs-on: ${{ ((!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'depot-macos-26') || inputs.runner) }}
+    runs-on: ${{ ((!inputs.runner || inputs.runner == 'auto') && 'macos-latest' || inputs.runner) }}
     timeout-minutes: 45
     env:
       PERF_TAG: perf-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
-      - name: Validate Depot runner identity
-        if: ${{ startsWith(((!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'depot-macos-26') || inputs.runner), 'depot-macos-') }}
-        env:
-          REQUESTED_RUNNER: ${{ ((!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'depot-macos-26') || inputs.runner) }}
-          RUNNER_CONTEXT_NAME: ${{ runner.name }}
-        run: |
-          set -euo pipefail
-          echo "Requested runner: $REQUESTED_RUNNER"
-          case "$RUNNER_CONTEXT_NAME" in
-            depot-*)
-              echo "Resolved runner matches depot-*? yes"
-              ;;
-            *)
-              echo "Resolved runner matches depot-*? no"
-              echo "::error::$REQUESTED_RUNNER resolved outside Depot. Remove $REQUESTED_RUNNER from non-Depot self-hosted runners or choose an explicit runner."
-              exit 1
-              ;;
-          esac
-
       - name: Clear stale git locks (self-hosted reused workspace)
         shell: bash
         run: |
@@ -173,8 +154,8 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: .ci-source-packages
-          key: spm-${{ ((!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'depot-macos-26') || inputs.runner) }}-${{ hashFiles('cmux.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
-          restore-keys: spm-${{ ((!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'depot-macos-26') || inputs.runner) }}-
+          key: spm-${{ ((!inputs.runner || inputs.runner == 'auto') && 'macos-latest' || inputs.runner) }}-${{ hashFiles('cmux.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: spm-${{ ((!inputs.runner || inputs.runner == 'auto') && 'macos-latest' || inputs.runner) }}-
 
       - name: Sanitize Swift package cache
         run: python3 scripts/ci/sanitize-xcode-source-packages-cache.py .ci-source-packages
@@ -275,7 +256,7 @@ jobs:
             sudo -n launchctl asuser "$CONSOLE_UID" sudo -n -u "$CONSOLE_USER" -E \
               env PATH="$PATH" DEVELOPER_DIR="$DEVELOPER_DIR" APP_PATH="$APP_PATH" BUNDLE_ID="$BUNDLE_ID" GITHUB_WORKSPACE="$PWD" \
               bash -c 'cd "$GITHUB_WORKSPACE" && swift scripts/bench-window-visibility.swift "$APP_PATH" "$BUNDLE_ID" 30 --cmd-tab-activation --cg-visibility' \
-              > perf-results/cmd-tab-activation.txt
+              | tee perf-results/cmd-tab-activation.txt >/dev/null
           else
             echo "::warning::Passwordless sudo unavailable; running Cmd-Tab benchmark in current bootstrap" >&2
             swift scripts/bench-window-visibility.swift "$APP_PATH" "$BUNDLE_ID" 30 --cmd-tab-activation --cg-visibility \
@@ -354,7 +335,7 @@ jobs:
       - activation_changes
       - activation-session-benchmark
     if: ${{ always() }}
-    runs-on: depot-ubuntu-24.04
+    runs-on: runs-on=${{ github.run_id }}-activation-session/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 5
     steps:
       - name: Check activation benchmark routing

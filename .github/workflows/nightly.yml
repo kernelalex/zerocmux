@@ -26,7 +26,7 @@ env:
 
 jobs:
   decide:
-    runs-on: depot-ubuntu-24.04
+    runs-on: runs-on=${{ github.run_id }}-nightly-decide/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     outputs:
       should_build: ${{ steps.decide.outputs.should_build }}
       head_sha: ${{ steps.decide.outputs.head_sha }}
@@ -95,7 +95,7 @@ jobs:
   build-sign-notarize-nightly:
     needs: decide
     if: needs.decide.outputs.should_build == 'true'
-    runs-on: depot-macos-26
+    runs-on: macos-latest
     timeout-minutes: 20
     steps:
       - name: Checkout build ref
@@ -133,7 +133,12 @@ jobs:
           if [ -d "/Applications/Xcode.app/Contents/Developer" ]; then
             XCODE_DIR="/Applications/Xcode.app/Contents/Developer"
           else
-            XCODE_APP="$(ls -d /Applications/Xcode*.app 2>/dev/null | head -n 1 || true)"
+            XCODE_APP=""
+            for candidate in /Applications/Xcode*.app; do
+              [ -d "$candidate" ] || continue
+              XCODE_APP="$candidate"
+              break
+            done
             if [ -n "$XCODE_APP" ]; then
               XCODE_DIR="$XCODE_APP/Contents/Developer"
             else
@@ -262,7 +267,6 @@ jobs:
           SHORT_SHA="${{ needs.decide.outputs.short_sha }}"
           APP_DIR="build-universal/Build/Products/Release"
           NIGHTLY_BUNDLE_ID="${APPLE_NIGHTLY_BUNDLE_ID:-com.kernelalex.zerocmux.nightly}"
-          echo "APPLE_NIGHTLY_BUNDLE_ID=${NIGHTLY_BUNDLE_ID}" >> "$GITHUB_ENV"
 
           BASE_MARKETING=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "${APP_DIR}/zerocmux.app/Contents/Info.plist")
           NIGHTLY_DATE=$(date -u +%Y%m%d)
@@ -276,12 +280,15 @@ jobs:
             NIGHTLY_BUILD="${NIGHTLY_DATE}000000"
           fi
           NIGHTLY_MARKETING_VERSION="${BASE_MARKETING}-nightly.${NIGHTLY_BUILD}"
-          echo "NIGHTLY_BUILD=${NIGHTLY_BUILD}" >> "$GITHUB_ENV"
-          echo "NIGHTLY_MARKETING_VERSION=${NIGHTLY_MARKETING_VERSION}" >> "$GITHUB_ENV"
-          echo "NIGHTLY_REMOTE_DAEMON_VERSION=${NIGHTLY_MARKETING_VERSION}" >> "$GITHUB_ENV"
 
           NIGHTLY_DMG_IMMUTABLE="zerocmux-nightly-macos-${NIGHTLY_BUILD}.dmg"
-          echo "NIGHTLY_DMG_IMMUTABLE=${NIGHTLY_DMG_IMMUTABLE}" >> "$GITHUB_ENV"
+          {
+            echo "APPLE_NIGHTLY_BUNDLE_ID=${NIGHTLY_BUNDLE_ID}"
+            echo "NIGHTLY_BUILD=${NIGHTLY_BUILD}"
+            echo "NIGHTLY_MARKETING_VERSION=${NIGHTLY_MARKETING_VERSION}"
+            echo "NIGHTLY_REMOTE_DAEMON_VERSION=${NIGHTLY_MARKETING_VERSION}"
+            echo "NIGHTLY_DMG_IMMUTABLE=${NIGHTLY_DMG_IMMUTABLE}"
+          } >> "$GITHUB_ENV"
 
           prepare_variant() {
             local app_dir="$1"
