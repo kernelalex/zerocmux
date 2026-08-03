@@ -656,6 +656,9 @@ fn exit_follows_all_final_pty_bytes_on_the_live_stream() {
 
     let mut output = Vec::new();
     loop {
+        // Exercise the live-stream queue and teardown path with a client that
+        // is making steady progress but cannot drain every frame immediately.
+        std::thread::sleep(Duration::from_millis(2));
         let frame = read_frame(&mut renderer.stream, MAX_FRAME_PAYLOAD)
             .unwrap()
             .expect("terminal host closed before sequenced Exit");
@@ -669,6 +672,43 @@ fn exit_follows_all_final_pty_bytes_on_the_live_stream() {
         }
     }
     assert!(contains_bytes(&output, b"FINAL-PTY-BYTE-MARKER"), "Exit overtook the final PTY bytes");
+    wait_for_no_host_records(&harness.host_root());
+}
+
+#[test]
+fn exited_host_teardown_is_bounded_when_a_live_stream_reader_is_wedged() {
+    let harness = RecoveryHarness::start("exit-wedged-reader");
+    request(
+        &harness.socket,
+        serde_json::json!({
+            "id": 1,
+            "cmd": "run",
+            "argv": [
+                "/bin/sh",
+                "-c",
+                "IFS= read -r trigger; /usr/bin/head -c 4194304 /dev/zero",
+            ],
+            "new_workspace": true,
+            "name": "exit-wedged-reader",
+        }),
+    );
+    let (record_path, record) = wait_for_host_records(&harness.host_root(), 1).remove(0);
+    let mut wedged = connect_host_detailed(
+        &record.endpoint,
+        &record.terminal_id,
+        &record.owner_token,
+        ClientRole::Admin,
+        CapabilityRights::ADMIN,
+    )
+    .unwrap();
+    write_frame(&mut wedged.stream, &Frame::new(MessageKind::Input, b"go\n".to_vec())).unwrap();
+
+    let started = Instant::now();
+    wait_for_terminal_host_dead(&record_path, &record);
+    assert!(
+        started.elapsed() < Duration::from_secs(10),
+        "terminal host teardown exceeded its hard-close fallback"
+    );
     wait_for_no_host_records(&harness.host_root());
 }
 
