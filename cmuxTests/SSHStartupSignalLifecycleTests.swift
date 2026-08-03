@@ -222,7 +222,7 @@ extension CLINotifyProcessIntegrationRegressionTests {
         )
         let fakeCLI = root.appendingPathComponent("cmux")
         let fakeSSH = root.appendingPathComponent("ssh")
-        let remoteCLI = remoteBin.appendingPathComponent("cmux")
+        let remoteCLI = remoteBin.appendingPathComponent("zerocmux")
         let localCLILog = root.appendingPathComponent("local-cmux.log")
         let remoteCLILog = root.appendingPathComponent("remote-cmux.log")
         let readinessAttemptLog = root.appendingPathComponent(
@@ -428,7 +428,7 @@ extension CLINotifyProcessIntegrationRegressionTests {
         let fakeCLI = root.appendingPathComponent("cmux")
         let fakeSSH = root.appendingPathComponent("ssh")
         let stagedRemoteCLI = root.appendingPathComponent("staged-remote-cmux")
-        let remoteCLI = remoteBin.appendingPathComponent("cmux")
+        let remoteCLI = remoteBin.appendingPathComponent("zerocmux")
         let eventLog = root.appendingPathComponent("raw-command-events.log")
 
         try fileManager.createDirectory(at: remoteBin, withIntermediateDirectories: true)

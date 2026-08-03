@@ -215,7 +215,7 @@ struct ShellStartupMatrixTests {
         let home = root.appendingPathComponent("home")
         let shell = root.appendingPathComponent("hangup-probe")
         let marker = root.appendingPathComponent("hangup-probe.txt")
-        let shieldingHelper = home.appendingPathComponent(".cmux/bin/cmux")
+        let shieldingHelper = home.appendingPathComponent(".cmux/bin/zerocmux")
         try fileManager.createDirectory(
             at: shieldingHelper.deletingLastPathComponent(),
             withIntermediateDirectories: true
@@ -499,7 +499,7 @@ struct ShellStartupMatrixTests {
         try writeExecutableShellFile(at: bin.appendingPathComponent(shellName), capturePath: capturePath)
         let persistentPTYExecHelper = injectPersistentPTYExecHelper
             ? bin.appendingPathComponent("persistent-pty-exec-helper")
-            : home.appendingPathComponent(".cmux/bin/cmux")
+            : home.appendingPathComponent(".cmux/bin/zerocmux")
         try fileManager.createDirectory(
             at: persistentPTYExecHelper.deletingLastPathComponent(),
             withIntermediateDirectories: true
