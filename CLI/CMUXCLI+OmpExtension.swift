@@ -190,7 +190,7 @@ function startHook(invocation: HookInvocation, subcommand: string): RunningHook 
       resolve();
     };
     try {
-      child = spawn(invocation.cmux, ["hooks", "omp", subcommand], {
+      child = spawn(invocation.zerocmux, ["hooks", "omp", subcommand], {
         env: invocation.env,
         stdio: ["pipe", "ignore", "ignore"],
       });

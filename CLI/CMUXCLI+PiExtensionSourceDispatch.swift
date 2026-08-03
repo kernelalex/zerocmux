@@ -371,7 +371,7 @@ class PiCmuxCommandDispatcher {
       const shouldWarn = !sessionId || !this.unavailableSessions.has(sessionId);
       if (sessionId) this.unavailableSessions.add(sessionId);
       if (shouldWarn) {
-        warn(context, "cmux hook command failed", {
+        warn(context, "zerocmux hook command failed", {
           status: result.status,
           stderr_available: result.stderr.trim().length > 0,
           error_available: result.error !== undefined,
