@@ -297,9 +297,7 @@ fn runtime_remains_attached_across_idle_request_timeout_and_accepts_late_snapsho
         let stream_id = attach["params"]["stream_id"].as_str().unwrap().to_string();
         success(&mut stream, &attach, json!({"stream_id": stream_id}));
 
-        snapshot_release_rx
-            .recv_timeout(Duration::from_secs(60))
-            .unwrap();
+        snapshot_release_rx.recv_timeout(Duration::from_secs(60)).unwrap();
         snapshot(&mut stream, &stream_id, 0);
 
         let cancel = request(&mut reader);
