@@ -297,7 +297,7 @@ extension CMUXCLI {
         // shape, ownership, permissions, and file relationships before writing to it.
         let trustedParent = managedRoot.deletingLastPathComponent().standardizedFileURL
 
-        guard trustedParent.lastPathComponent == "cmux-cli-shims",
+        guard trustedParent.lastPathComponent == "zerocmux-cli-shims",
               managedRoot.lastPathComponent == surfaceId,
               isOwnedNonSymlinkDirectory(trustedParent, fileManager: fileManager),
               isOwnedNonSymlinkDirectory(managedRoot, fileManager: fileManager),

@@ -620,12 +620,10 @@ if [[ "$CMUX_CLAUDE_HOOKS_DISABLED" == "1" ]]; then
     cmux_claude_wrapper_exec_resolved_claude "$REAL_CLAUDE" "$@"
 fi
 
-if [[ "$IN_CMUX" == "0" ]] || ! cmux_socket_available; then
-    # In zerocmux-launched shells, preserve old behavior and always clear nested
-    # Claude session markers, even when we must pass through due to stale socket.
-    if [[ "$IN_CMUX" == "1" ]]; then
-        clear_inherited_claude_session_identity_env
-    fi
+if [[ "$IN_CMUX" == "0" ]]; then
+    # Outside a zerocmux shell there is nothing to own: pass straight through.
+    # The stale-socket passthrough for zerocmux-launched shells lives below, so
+    # it can first exempt app-generated restores (which must keep their hooks).
     clear_inherited_claude_auth_selection_env
     REAL_CLAUDE="$(find_real_claude)" || { echo "Error: claude not found in PATH" >&2; exit 127; }
     exec_real_claude_passthrough "$@"

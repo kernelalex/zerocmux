@@ -37,7 +37,7 @@ def main() -> int:
     ):
         tmp = Path(td)
         home = tmp / "home"
-        second_cmux_shim_bin = tmp / "cmux-cli-shims" / "99999999-9999-4999-8999-999999999999"
+        second_cmux_shim_bin = tmp / "zerocmux-cli-shims" / "99999999-9999-4999-8999-999999999999"
         real_bin = tmp / "real-bin"
         home.mkdir(parents=True, exist_ok=True)
         second_cmux_shim_bin.mkdir(parents=True, exist_ok=True)

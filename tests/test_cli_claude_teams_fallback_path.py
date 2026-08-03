@@ -37,7 +37,7 @@ def main() -> int:
         tmp = Path(td)
         home = tmp / "home"
         fallback_bin = home / ".bun" / "bin"
-        managed_bin = tmp / "cmux-cli-shims" / "99999999-9999-4999-8999-999999999999"
+        managed_bin = tmp / "zerocmux-cli-shims" / "99999999-9999-4999-8999-999999999999"
         fallback_bin.mkdir(parents=True, exist_ok=True)
         managed_bin.mkdir(parents=True, exist_ok=True)
 
@@ -333,7 +333,7 @@ exit 86
             print("FAIL: managed wrapper root for a different surface was accepted")
             return 1
 
-        redirected_root_parent = tmp / "redirected" / "cmux-cli-shims"
+        redirected_root_parent = tmp / "redirected" / "zerocmux-cli-shims"
         redirected_target = tmp / "redirected-target"
         redirected_root_parent.mkdir(parents=True)
         redirected_target.mkdir()

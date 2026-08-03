@@ -173,7 +173,7 @@ def focused_cmux_server(
 def canonical_managed_claude_shim_root() -> Iterator[tuple[str, Path]]:
     """Create an isolated per-surface shim at the app-owned temporary root."""
     surface_id = str(uuid.uuid4())
-    parent = Path(tempfile.gettempdir()) / "cmux-cli-shims"
+    parent = Path(tempfile.gettempdir()) / "zerocmux-cli-shims"
     root = parent / surface_id
     root.mkdir(parents=True)
     try:
