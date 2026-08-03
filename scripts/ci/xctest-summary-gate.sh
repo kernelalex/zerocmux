@@ -28,19 +28,32 @@ set -uo pipefail
 log_source="${1:-/dev/stdin}"
 
 awk '
-  # XCTest summary lines, e.g.
+  # XCTest summary lines come in two shapes, and the second only appears once
+  # something is skipped:
   #   Executed 3 tests, with 1 failure (0 unexpected) in 0.077 (0.078) seconds
-  match($0, /Executed [0-9]+ tests?, with [0-9]+ failures? \([0-9]+ unexpected\)/) {
+  #   Executed 240 tests, with 3 tests skipped and 294 failures (0 unexpected) ...
+  # Match on the stable head and tail and pull each number out by name rather
+  # than by field position, which differs between the two.
+  match($0, /Executed [0-9]+ tests?, with [^()]*\([0-9]+ unexpected\)/) {
     line = substr($0, RSTART, RLENGTH)
 
-    split(line, head, " ")
-    executed = head[2] + 0
-    failures = head[5] + 0
+    executed_text = line
+    sub(/^Executed /, "", executed_text)
+    sub(/ .*$/, "", executed_text)
+    executed = executed_text + 0
 
-    unexpected = line
-    sub(/.*\(/, "", unexpected)
-    sub(/ unexpected\).*/, "", unexpected)
-    unexpected += 0
+    unexpected_text = line
+    sub(/.*\(/, "", unexpected_text)
+    sub(/ unexpected\).*$/, "", unexpected_text)
+    unexpected = unexpected_text + 0
+
+    failures = 0
+    failures_text = line
+    if (match(failures_text, /[0-9]+ failures?[^a-z]/)) {
+      failures_text = substr(failures_text, RSTART, RLENGTH)
+      sub(/ failures?.*$/, "", failures_text)
+      failures = failures_text + 0
+    }
 
     # xcodebuild prints a summary per suite plus repeated overall totals, so
     # these counters are only ever used as "is any of them non-zero" flags,

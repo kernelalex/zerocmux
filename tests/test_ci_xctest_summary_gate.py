@@ -49,6 +49,18 @@ BUILD_DIED_BEFORE_TESTING = """\
 error: Could not resolve package dependencies
 """
 
+# Once anything is skipped XCTest switches to a different summary shape. This
+# is verbatim from the app-host suites after the SSH attach tests were skipped;
+# an earlier version of the gate did not match it and would have failed a clean
+# run with "no summary found".
+SKIPPED_TESTS_SHAPE = """\
+\t Executed 240 tests, with 3 tests skipped and 294 failures (0 unexpected) in 684.167 (684.286) seconds
+"""
+
+SKIPPED_TESTS_SHAPE_WITH_UNEXPECTED = """\
+\t Executed 240 tests, with 3 tests skipped and 294 failures (2 unexpected) in 684.167 (684.286) seconds
+"""
+
 NOTHING_RAN = """\
 \t Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
 """
@@ -76,6 +88,16 @@ CASES: list[tuple[str, str, int]] = [
         1,
     ),
     ("a run that executed nothing fails instead of passing", NOTHING_RAN, 1),
+    (
+        "the skipped-tests summary shape is recognized, not treated as missing",
+        SKIPPED_TESTS_SHAPE,
+        0,
+    ),
+    (
+        "unexpected failures are still caught in the skipped-tests shape",
+        SKIPPED_TESTS_SHAPE_WITH_UNEXPECTED,
+        1,
+    ),
 ]
 
 
