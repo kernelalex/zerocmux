@@ -158,11 +158,5 @@ jobs:
           set -e
 
           if [ "$EXIT_CODE" -ne 0 ]; then
-            SUMMARY=$(echo "$OUTPUT" | grep "Executed.*tests.*with.*failures" | tail -1 || true)
-            if echo "$SUMMARY" | grep -q "(0 unexpected)"; then
-              echo "All failures are expected, treating as pass"
-            else
-              echo "Unexpected terminal corpus test failures detected"
-              exit 1
-            fi
+            ./scripts/ci/xctest-summary-gate.sh /tmp/tmux-terminal-corpus-output.txt
           fi

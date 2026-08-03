@@ -148,6 +148,9 @@ jobs:
       - name: Validate xcodebuild noninteractive crash prompt guard
         run: python3 tests/test_ci_xcodebuild_noninteractive_helper.py
 
+      - name: Validate XCTest summary tolerance gate
+        run: python3 tests/test_ci_xctest_summary_gate.py
+
       - name: Validate app-host xcodebuild retry guard
         run: ./tests/test_ci_app_host_xcodebuild_retry.sh
 
@@ -904,13 +907,7 @@ jobs:
           fi
 
           if [ "$EXIT_CODE" -ne 0 ]; then
-            SUMMARY=$(echo "$OUTPUT" | grep "Executed.*tests.*with.*failures" | tail -1)
-            if echo "$SUMMARY" | grep -q "(0 unexpected)"; then
-              echo "All failures are expected, treating as pass"
-            else
-              echo "Unexpected test failures detected"
-              exit 1
-            fi
+            ./scripts/ci/xctest-summary-gate.sh "$TEST_OUTPUT"
           fi
 
       - name: Run bundled Ghostty theme picker helper regression

@@ -135,13 +135,7 @@ jobs:
 
           echo "$OUTPUT"
           if [ "$EXIT_CODE" -ne 0 ]; then
-            SUMMARY=$(echo "$OUTPUT" | grep "Executed.*tests.*with.*failures" | tail -1)
-            if echo "$SUMMARY" | grep -q "(0 unexpected)"; then
-              echo "All failures are expected, treating as pass"
-            else
-              echo "Unexpected test failures detected"
-              exit 1
-            fi
+            printf '%s\n' "$OUTPUT" | ./scripts/ci/xctest-summary-gate.sh
           fi
 
       - name: Run UI tests
