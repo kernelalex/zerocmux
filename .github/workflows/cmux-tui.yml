@@ -152,6 +152,7 @@ jobs:
               --show-leak-kinds=definite \
               --errors-for-leak-kinds=definite \
               --track-origins=yes \
+              --suppressions=ci/valgrind.supp \
               -- "$bin"; then
               echo "Valgrind failed for $bin" >&2
               exit 1
