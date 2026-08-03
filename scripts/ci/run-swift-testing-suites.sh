@@ -25,7 +25,13 @@ is_cosmetic_ghostty_binary_failure() {
   [ "$tolerate_ghostty_binary_diagnostic" = "1" ] || return 1
   grep -q 'unexpected binary' "$output_file" || return 1
   ! grep -Eq 'with [1-9][0-9]* failures?' "$output_file" || return 1
-  ! grep -v 'unexpected binary' "$output_file" | grep -Eq '(^|[^a-zA-Z])error:' || return 1
+  if awk '
+    /unexpected binary/ { next }
+    /(^|[^a-zA-Z])error:/ { found = 1 }
+    END { exit(found ? 0 : 1) }
+  ' "$output_file"; then
+    return 1
+  fi
   if [ "$requires_test_summary" = "1" ]; then
     grep -Eq 'Test run with [0-9]+ tests?( in [0-9]+ suites?)? passed' "$output_file"
   fi
