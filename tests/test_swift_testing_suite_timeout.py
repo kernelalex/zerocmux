@@ -90,6 +90,25 @@ class SwiftTestingSuiteTimeoutTests(unittest.TestCase):
         self.assertNotEqual(completed.returncode, 0, completed.stdout)
         self.assertIn("error: compilation failed", completed.stdout)
 
+    def test_large_error_logs_are_not_hidden_by_ghostty_diagnostic_tolerance(self) -> None:
+        completed = self.run_with_fake_swift(
+            "#!/usr/bin/env bash\n"
+            "echo 'error: unexpected binary name in GhosttyKit'\n"
+            "if [[ \"$*\" == *\"test list\"* ]]; then\n"
+            "  echo 'ExampleTests.FailingSuite/testFails()'\n"
+            "else\n"
+            "  for ((i = 0; i < 20000; i++)); do\n"
+            "    echo 'error: compilation failed'\n"
+            "  done\n"
+            "  echo 'Test run with 1 test in 1 suite passed'\n"
+            "fi\n"
+            "exit 1\n",
+            tolerate_ghostty_diagnostic=True,
+        )
+
+        self.assertNotEqual(completed.returncode, 0, completed.stdout)
+        self.assertIn("error: compilation failed", completed.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
