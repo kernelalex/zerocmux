@@ -1,0 +1,95 @@
+# Valgrind/memcheck suppressions for the cmux-tui leak sweep.
+#
+# The sweep exists to catch definite leaks (--leak-check=full
+# --errors-for-leak-kinds=definite). Because it also runs with
+# --error-exitcode=1, any ordinary memcheck error aborts the whole sweep,
+# and the TLS-using test binaries (direct_wss_e2e, relay_wss_diagnostic)
+# trip a well-known false positive before their leak summary is ever
+# reached. Their leak summaries are clean: "definitely lost: 0 bytes in
+# 0 blocks".
+#
+# Mechanism: ring's AES-GCM key schedule builds the expanded key and the
+# GHASH tables in a stack MaybeUninit buffer that is filled by hand-written
+# SIMD assembly (ring::aead::aes_gcm::Key::new). Memcheck cannot see those
+# stores, so every byte derived from that key stays marked undefined. The
+# taint then shows up in two places: a branch inside ring's own
+# open_within, and the writev() that flushes the resulting rustls record
+# to the socket. Both are reported with
+# "Uninitialised value was created by a stack allocation
+#     at ring::aead::aes_gcm::Key::new (aes_gcm.rs:44)".
+#
+# These entries are deliberately keyed on ring's AEAD frames and on
+# rustls's record-flush frame so that uninitialised-memory reports from
+# cmux code keep failing the sweep. The one accepted narrowing is that an
+# uninitialised byte smuggled into a rustls record body would now be
+# suppressed at the writev; there is no way to distinguish it from the
+# ring-derived ciphertext in the same buffer.
+
+{
+   ring-aead-uninitialised-branch-cond
+   Memcheck:Cond
+   ...
+   fun:*ring*aead*
+   ...
+}
+
+{
+   ring-aead-uninitialised-branch-value8
+   Memcheck:Value8
+   ...
+   fun:*ring*aead*
+   ...
+}
+
+{
+   ring-aead-uninitialised-branch-value4
+   Memcheck:Value4
+   ...
+   fun:*ring*aead*
+   ...
+}
+
+{
+   rustls-ring-record-flush-writev-0
+   Memcheck:Param
+   writev(vector[0])
+   ...
+   fun:*ChunkVecBuffer*write_to*
+   ...
+}
+
+{
+   rustls-ring-record-flush-writev-1
+   Memcheck:Param
+   writev(vector[1])
+   ...
+   fun:*ChunkVecBuffer*write_to*
+   ...
+}
+
+{
+   rustls-ring-record-flush-writev-2
+   Memcheck:Param
+   writev(vector[2])
+   ...
+   fun:*ChunkVecBuffer*write_to*
+   ...
+}
+
+{
+   rustls-ring-record-flush-writev-3
+   Memcheck:Param
+   writev(vector[3])
+   ...
+   fun:*ChunkVecBuffer*write_to*
+   ...
+}
+
+{
+   rustls-ring-record-flush-write-0
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:*ChunkVecBuffer*write_to*
+   ...
+}
