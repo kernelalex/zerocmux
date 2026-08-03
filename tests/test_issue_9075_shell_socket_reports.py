@@ -75,12 +75,12 @@ def shell_cases() -> list[tuple[str, Path, list[str]]]:
     cases = [
         (
             "bash",
-            ROOT / "Resources/shell-integration/cmux-bash-integration.bash",
+            ROOT / "Resources/shell-integration/zerocmux-bash-integration.bash",
             ["/bin/bash", "--noprofile", "--norc", "-c"],
         ),
         (
             "zsh",
-            ROOT / "Resources/shell-integration/cmux-zsh-integration.zsh",
+            ROOT / "Resources/shell-integration/zerocmux-zsh-integration.zsh",
             ["/bin/zsh", "-f", "-c"],
         ),
     ]

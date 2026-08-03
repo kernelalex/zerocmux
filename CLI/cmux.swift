@@ -15822,7 +15822,7 @@ struct CMUXCLI {
             """
         case "new-pane":
             return """
-            Usage: zerozerocmux new-pane [flags]
+            Usage: zerocmux new-pane [flags]
 
             Create a new pane in the workspace.
 
@@ -15845,7 +15845,7 @@ struct CMUXCLI {
             """
         case "new-surface":
             return """
-            Usage: zerozerocmux new-surface [flags]
+            Usage: zerocmux new-surface [flags]
 
             Create a new surface (tab) in a pane.
 

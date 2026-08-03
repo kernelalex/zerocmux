@@ -392,7 +392,7 @@ final class RemoteTmuxSessionMirror: RemoteTmuxControlPaneMutationOwner {
         // move-window / a new-window inserted mid-list): the zerocmux tabs are created
         // in arrival order and appended, so a non-tail change leaves the strip
         // stale. Reorder to match tmux's reported order, preserving focus. The
-        // zerozerocmux→tmux drag direction is handled by handleMirrorWindowsReordered and
+        // zerocmux→tmux drag direction is handled by handleMirrorWindowsReordered and
         // already matches, so this no-ops there.
         let desiredPanelOrder = connection.windowOrder.compactMap { panelIdByWindow[$0] }
         if desiredPanelOrder.count > 1 {

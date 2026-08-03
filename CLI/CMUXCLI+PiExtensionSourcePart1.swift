@@ -476,7 +476,7 @@ function warn(
   try {
     console.warn(JSON.stringify(payload));
   } catch (_) {
-    console.warn(`[zerozerocmux-pi-extension] ${message}`);
+    console.warn(`[zerocmux-pi-extension] ${message}`);
   }
   // Hook transport is best-effort telemetry. Keep routine command failures in
   // the terminal instead of interrupting Pi with a generic toast; reserve the

@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_WRAPPER = ROOT / "Resources" / "bin" / "cmux-codex-wrapper"
+SOURCE_WRAPPER = ROOT / "Resources" / "bin" / "zerocmux-codex-wrapper"
 SESSION_ID = "0198f073-0a5b-7000-8000-000000000059"
 
 
@@ -44,7 +44,7 @@ def run_wrapper(
         real_dir.mkdir()
         bundled_dir.mkdir()
 
-        wrapper = wrapper_dir / "cmux-codex-wrapper"
+        wrapper = wrapper_dir / "zerocmux-codex-wrapper"
         shutil.copy2(SOURCE_WRAPPER, wrapper)
         wrapper.chmod(0o755)
 

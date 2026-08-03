@@ -87,7 +87,7 @@ def main() -> int:
         "CMUX_SURFACE_ID": surface_id,
         "CMUX_PANEL_ID": surface_id,
         "CMUX_PANE_ID": current_pane_id,
-        "TMUX": f"/tmp/cmux-debug/{current_workspace_id},{current_window_id},{pane_token}",
+        "TMUX": f"/tmp/zerocmux-debug/{current_workspace_id},{current_window_id},{pane_token}",
         "TMUX_PANE": f"%{pane_token}",
     }
     observed = parsed_environment(result.stdout)

@@ -3,7 +3,7 @@ import Foundation
 extension CMUXCLI {
     static var sshCommandUsage: String {
         let help = String(localized: "cli.help.ssh", defaultValue: """
-        Usage: cmux ssh <destination> [flags] [-- <remote-command-args>]
+        Usage: zerocmux ssh <destination> [flags] [-- <remote-command-args>]
 
         Create a new workspace, mark it as remote-SSH, and start an SSH session in that workspace.
         cmux will also establish a local SSH proxy endpoint so browser traffic can egress from the remote host.
@@ -19,10 +19,10 @@ extension CMUXCLI {
           --no-focus              Create workspace without switching to it
 
         Example:
-          cmux ssh dev@my-host
-          cmux ssh dev@my-host --name "gpu-box" --port 2222 --identity ~/.ssh/id_ed25519
-          cmux ssh dev@my-host --forward-agent
-          cmux ssh dev@my-host --ssh-option UserKnownHostsFile=/dev/null --ssh-option StrictHostKeyChecking=no
+          zerocmux ssh dev@my-host
+          zerocmux ssh dev@my-host --name "gpu-box" --port 2222 --identity ~/.ssh/id_ed25519
+          zerocmux ssh dev@my-host --forward-agent
+          zerocmux ssh dev@my-host --ssh-option UserKnownHostsFile=/dev/null --ssh-option StrictHostKeyChecking=no
         """)
         let moshHelp = String(
             localized: "cli.help.ssh.mosh",
@@ -31,10 +31,10 @@ extension CMUXCLI {
               --transport <ssh|mosh>  Interactive terminal transport (default: ssh)
 
             SSH continues to handle remote features; Mosh carries only the interactive
-            terminal. If Mosh is missing locally or remotely, cmux reports it and uses SSH.
+            terminal. If Mosh is missing locally or remotely, zerocmux reports it and uses SSH.
 
             Example:
-              cmux ssh dev@my-host --transport mosh
+              zerocmux ssh dev@my-host --transport mosh
             """
         )
         let initialCommandHelp = String(
@@ -44,7 +44,7 @@ extension CMUXCLI {
               --command <text>        Run text once in the initial remote terminal after shell startup
 
             Example:
-              cmux ssh dev@my-host --command 'omp "investigate auth"'
+              zerocmux ssh dev@my-host --command 'omp "investigate auth"'
             """
         )
         return "\(help)\n\n\(initialCommandHelp)\n\n\(moshHelp)"

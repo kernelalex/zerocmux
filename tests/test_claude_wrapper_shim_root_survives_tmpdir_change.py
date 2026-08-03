@@ -48,14 +48,14 @@ def main() -> int:
             'source "$CMUX_TEST_INTEGRATION"\n'
             '_cmux_install_cli_command_shim claude "$CMUX_TEST_WRAPPER"\n'
             'printf "%s\\n" "$CMUX_CLAUDE_WRAPPER_SHIM_ROOT"',
-            REPO_ROOT / "Resources/shell-integration/cmux-bash-integration.bash",
+            REPO_ROOT / "Resources/shell-integration/zerocmux-bash-integration.bash",
         ),
         "zsh": (
             ["-f", "-c"],
             'source "$CMUX_TEST_INTEGRATION"\n'
             '_cmux_install_cli_command_shim claude "$CMUX_TEST_WRAPPER"\n'
             'printf "%s\\n" "$CMUX_CLAUDE_WRAPPER_SHIM_ROOT"',
-            REPO_ROOT / "Resources/shell-integration/cmux-zsh-integration.zsh",
+            REPO_ROOT / "Resources/shell-integration/zerocmux-zsh-integration.zsh",
         ),
     }
     fish = shutil.which("fish")
@@ -70,7 +70,7 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix="cmux-shim-root-") as td:
         root = Path(td)
-        managed_root = root / "app installed" / "cmux-cli-shims" / SURFACE_ID
+        managed_root = root / "app installed" / "zerocmux-cli-shims" / SURFACE_ID
         changed_tmpdir = root / "profile tmp"
         wrapper = root / "cmux-claude-wrapper"
         managed_root.mkdir(parents=True)
@@ -107,7 +107,7 @@ def main() -> int:
             if not (managed_root / "claude").is_file():
                 print(f"FAIL: {shell} did not write into the app-installed shim root")
                 return 1
-            fallback = changed_tmpdir / "cmux-cli-shims" / SURFACE_ID / "claude"
+            fallback = changed_tmpdir / "zerocmux-cli-shims" / SURFACE_ID / "claude"
             if fallback.exists():
                 print(f"FAIL: {shell} re-derived the shim root from changed TMPDIR")
                 return 1
