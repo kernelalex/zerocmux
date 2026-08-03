@@ -4264,14 +4264,26 @@ mod tests {
         let directory = tempfile::tempdir_in("/tmp").unwrap();
         let state_root = directory.path().join("state");
         let session = "ready-receiver-disappears";
-        let (state_dir, _, _) = daemon_paths(session, Some(&state_root)).unwrap();
+        let (state_dir, link_socket, admin_socket) =
+            daemon_paths(session, Some(&state_root)).unwrap();
         let mut pause = DaemonCleanupPauseHandle::install(
             state_dir.clone(),
             DaemonCleanupPausePhase::BeforeReadySend,
         );
         let mux_socket = directory.path().join("missing-mux.sock");
-        let caller = thread::spawn(move || {
-            start_daemon_runtime_with_timeout(
+        // Drive the daemon body directly so the owner's disappearance is
+        // ordered by the startup pause rather than by a wall clock. A timed
+        // owner races the daemon's own setup: whenever the timeout wins, the
+        // shutdown it publishes cancels startup at the pre-listener
+        // checkpoint, so the daemon never reaches this pause and never
+        // publishes the finalization the test is about.
+        let (shutdown_tx, shutdown_rx) = watch::channel(false);
+        let owner_shutdown = shutdown_tx.clone();
+        let (ready_tx, ready_rx) = mpsc::sync_channel(1);
+        let daemon_state_dir = state_dir.clone();
+        let daemon = thread::spawn(move || {
+            let runtime = build_remote_runtime("cmux-remote-daemon-worker")?;
+            let result = runtime.block_on(run_daemon(
                 mux_socket,
                 DaemonRuntimeOptions {
                     session: session.into(),
@@ -4287,8 +4299,15 @@ mod tests {
                     resume_lease: Duration::from_secs(2),
                     replaceable_sidecar: true,
                 },
-                Duration::from_millis(500),
-            )
+                daemon_state_dir,
+                link_socket,
+                admin_socket,
+                shutdown_rx,
+                owner_shutdown,
+                ready_tx,
+            ));
+            runtime.shutdown_timeout(REMOTE_RUNTIME_SHUTDOWN_TIMEOUT);
+            result
         });
         pause.wait_until_reached();
 
@@ -4297,26 +4316,19 @@ mod tests {
             .expect("starting daemon did not persist runtime metadata")
             .lifecycle_id
             .expect("starting daemon omitted its lifecycle id");
-        let startup = caller.join().unwrap();
-        let error = match startup {
-            Err(error) => error,
-            Ok(runtime) => {
-                runtime.shutdown().unwrap();
-                panic!("paused daemon became ready after its owner timed out");
-            }
-        };
-        assert!(error.to_string().contains("did not become ready"), "{error:#}");
+        // Give up on the startup exactly the way a timed-out owner does: drop
+        // the readiness receiver and ask the daemon to stop.
+        drop(ready_rx);
+        let _ = shutdown_tx.send(true);
         pause.resume();
 
-        let runtime_path = state_dir.join("runtime.json");
-        let outcome_path = state_dir.join("shutdown.json");
-        let deadline = std::time::Instant::now() + Duration::from_secs(30);
-        while (runtime_path.exists() || !outcome_path.exists())
-            && std::time::Instant::now() < deadline
-        {
-            thread::sleep(Duration::from_millis(10));
-        }
+        let error = match daemon.join().unwrap() {
+            Err(error) => error,
+            Ok(()) => panic!("paused daemon reported a clean startup after its owner disappeared"),
+        };
+        assert!(error.to_string().contains("owner stopped during startup"), "{error:#}");
 
+        let runtime_path = state_dir.join("runtime.json");
         assert!(!runtime_path.exists(), "orphaned startup retained active runtime metadata");
         let outcome = load_shutdown_outcome(&state_dir)
             .expect("orphaned startup did not publish authorization finalization");
