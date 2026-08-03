@@ -8,7 +8,7 @@ extension CMUXOpenCommandTests {
         let sidecarURL = URL(fileURLWithPath: cliPath)
             .deletingLastPathComponent()
             .appendingPathComponent("cmux-diff-sidecar", isDirectory: false)
-        let rootURL = URL(fileURLWithPath: "/tmp/cmux-diff-viewer-\(Darwin.getuid())", isDirectory: true)
+        let rootURL = URL(fileURLWithPath: "/tmp/zerocmux-diff-viewer-\(Darwin.getuid())", isDirectory: true)
         let request: [String: Any] = [
             "id": "xctest-session",
             "version": 1,

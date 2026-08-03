@@ -893,7 +893,7 @@ extension CLINotifyProcessIntegrationRegressionTests {
             }
         XCTAssertFalse(allCommands.isEmpty)
         XCTAssertTrue(
-            allCommands.allSatisfy { $0.contains("cmux-antigravity-hook-v2") },
+            allCommands.allSatisfy { $0.contains("zerocmux-antigravity-hook-v2") },
             "Expected Antigravity hooks to use the pinned dispatch path, saw \(allCommands)"
         )
         XCTAssertFalse(
@@ -2798,7 +2798,7 @@ extension CLINotifyProcessIntegrationRegressionTests {
         let hookURL = root
             .appendingPathComponent(".grok", isDirectory: true)
             .appendingPathComponent("hooks", isDirectory: true)
-            .appendingPathComponent("cmux-session.json", isDirectory: false)
+            .appendingPathComponent("zerocmux-session.json", isDirectory: false)
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: hookURL)) as? [String: Any])
         let hooks = try XCTUnwrap(json["hooks"] as? [String: Any])
         let notificationGroups = try XCTUnwrap(hooks["Notification"] as? [[String: Any]])
@@ -2877,7 +2877,7 @@ extension CLINotifyProcessIntegrationRegressionTests {
         let hookURL = root
             .appendingPathComponent(".grok", isDirectory: true)
             .appendingPathComponent("hooks", isDirectory: true)
-            .appendingPathComponent("cmux-session.json", isDirectory: false)
+            .appendingPathComponent("zerocmux-session.json", isDirectory: false)
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: hookURL)) as? [String: Any])
         let hooks = try XCTUnwrap(json["hooks"] as? [String: Any])
         let allCommands = hooks.values

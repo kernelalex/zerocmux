@@ -2358,7 +2358,7 @@ final class CMUXOpenCommandTests: XCTestCase {
         XCTAssertEqual(result.status, 0, result.stderr)
         XCTAssertEqual(outputLines(result.stdout), [
             "2.0\t2000\t1\twindow\twindow:1\ttotal\t",
-            "2.0\t2000\t1\tprocess\t4129\twindow:1\tcmux",
+            "2.0\t2000\t1\tprocess\t4129\twindow:1\tzerocmux",
         ])
     }
 
@@ -2438,7 +2438,7 @@ final class CMUXOpenCommandTests: XCTestCase {
         XCTAssertEqual(result.status, 0, result.stderr)
         XCTAssertEqual(outputLines(result.stdout), [
             "2.0\t2000\t2\twindow\twindow:1\ttotal\t",
-            "4.0\t10000\t1\tprocess\t4129\twindow:1\tcmux",
+            "4.0\t10000\t1\tprocess\t4129\twindow:1\tzerocmux",
             "1.0\t1000\t1\tworkspace\tworkspace:low\twindow:1\t",
         ])
     }
