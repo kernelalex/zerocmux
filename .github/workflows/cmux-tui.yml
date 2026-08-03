@@ -152,6 +152,7 @@ jobs:
               --show-leak-kinds=definite \
               --errors-for-leak-kinds=definite \
               --track-origins=yes \
+              --suppressions=ci/valgrind.supp \
               -- "$bin"; then
               echo "Valgrind failed for $bin" >&2
               exit 1
@@ -197,12 +198,25 @@ jobs:
         working-directory: cmux-tui
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
+      # Bound libtest's parallelism. Several suites in this workspace assert
+      # wall-clock behavior (drain deadlines, "this connect spans more than
+      # one poll", "no attempt monopolized the worker", budget workers
+      # converging). At the default one-thread-per-core, a single test binary
+      # runs 800-1200 of those concurrently and this repo's runners starve the
+      # timed threads, so a rotating handful fails every run while every one
+      # of them passes in isolation. This changes scheduling only: no
+      # assertion, deadline, or test is relaxed or skipped. Measured cost on
+      # the largest binary (cmux-tui-core --lib, 837 tests): 18.3s -> 19.4s.
       - name: cargo test
         working-directory: cmux-tui
+        env:
+          RUST_TEST_THREADS: "4"
         run: cargo test --workspace --locked
 
       - name: crossterm parser tests
         working-directory: cmux-tui
+        env:
+          RUST_TEST_THREADS: "4"
         run: cargo test --manifest-path vendor/crossterm/Cargo.toml --lib
 
       - name: TUI smoke test (scripted pty)
