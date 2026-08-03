@@ -459,30 +459,24 @@ extension CLINotifyProcessIntegrationRegressionTests {
         "Hosted auth and Cloud VM services are not available in zerocmux "
         + "because the web backend has been removed."
 
-    /// Runs `zerocmux <arguments>` against a mock socket that records every byte
-    /// the CLI sends, and returns the process result plus that traffic.
+    /// Runs `zerocmux <arguments>` with `CMUX_SOCKET_PATH` pointing at a bound
+    /// but unserved listener, then reports how many request bytes the CLI sent.
+    ///
+    /// No background accept loop and no XCTestExpectation: the property under
+    /// test is that the CLI issues no request, and an expectation that is never
+    /// fulfilled is itself an XCTest failure. The CLI does open the socket while
+    /// resolving its endpoint; what must never happen is a command going out.
     func runRemovedHostedVerb(
         _ arguments: [String],
         socketLabel: String
-    ) throws -> (result: ProcessRunResult, socketTraffic: [String]) {
+    ) throws -> (result: ProcessRunResult, requestBytes: Int) {
         let cliPath = try bundledCLIPath()
         let socketPath = makeSocketPath(socketLabel)
         let listenerFD = try bindUnixSocket(at: socketPath)
-        let state = MockSocketServerState()
 
         defer {
             Darwin.close(listenerFD)
             unlink(socketPath)
-        }
-
-        // Deliberately not waited on: a correct fork build never connects, so
-        // the accept loop stays parked until the deferred close tears it down.
-        _ = startMockServer(listenerFD: listenerFD, state: state) { line in
-            guard let payload = self.jsonObject(line),
-                  let id = payload["id"] as? String else {
-                return self.malformedRequestResponse(raw: line)
-            }
-            return self.v2Response(id: id, ok: true, result: [:])
         }
 
         var environment = ProcessInfo.processInfo.environment
@@ -496,7 +490,30 @@ extension CLINotifyProcessIntegrationRegressionTests {
             timeout: 5
         )
         XCTAssertFalse(result.timedOut, result.stderr)
-        return (result, state.commands)
+
+        // The listen backlog holds any completed connect() even though nothing
+        // ever called accept(), so draining it after the CLI exits shows
+        // exactly what it put on the wire. The CLI has exited by now, so a
+        // connection that carried no request reads as immediate EOF.
+        let listenerFlags = fcntl(listenerFD, F_GETFL, 0)
+        _ = fcntl(listenerFD, F_SETFL, listenerFlags | O_NONBLOCK)
+        var requestBytes = 0
+        while true {
+            let acceptedFD = Darwin.accept(listenerFD, nil, nil)
+            guard acceptedFD >= 0 else { break }
+            var buffer = [UInt8](repeating: 0, count: 4_096)
+            while true {
+                let count = Darwin.read(acceptedFD, &buffer, buffer.count)
+                if count > 0 {
+                    requestBytes += count
+                    continue
+                }
+                if count < 0 && errno == EINTR { continue }
+                break
+            }
+            Darwin.close(acceptedFD)
+        }
+        return (result, requestBytes)
     }
 
     /// Asserts the fork answers `arguments` with the removed-service refusal:
@@ -508,7 +525,7 @@ extension CLINotifyProcessIntegrationRegressionTests {
         file: StaticString = #filePath,
         line: UInt = #line
     ) throws {
-        let (result, socketTraffic) = try runRemovedHostedVerb(arguments, socketLabel: socketLabel)
+        let (result, requestBytes) = try runRemovedHostedVerb(arguments, socketLabel: socketLabel)
         let rendered = arguments.joined(separator: " ")
 
         XCTAssertEqual(
@@ -535,9 +552,10 @@ extension CLINotifyProcessIntegrationRegressionTests {
             line: line
         )
         XCTAssertEqual(
-            socketTraffic,
-            [],
-            "removed hosted verbs must resolve locally without socket traffic, saw \(socketTraffic)",
+            requestBytes,
+            0,
+            "removed hosted verbs must refuse locally without sending any request, sent "
+                + "\(requestBytes) byte(s)",
             file: file,
             line: line
         )

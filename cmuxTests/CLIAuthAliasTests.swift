@@ -28,13 +28,13 @@ extension CLINotifyProcessIntegrationRegressionTests {
     /// than a bare non-zero exit, so automation can tell "removed" apart from
     /// "the app is not running".
     func testRemovedHostedVerbsEmitMachineReadableUnavailability() throws {
-        let (result, socketTraffic) = try runRemovedHostedVerb(
+        let (result, requestBytes) = try runRemovedHostedVerb(
             ["logout", "--json"],
             socketLabel: "auth-logout-json"
         )
 
         XCTAssertEqual(result.status, 1, result.stderr)
-        XCTAssertEqual(socketTraffic, [], "saw \(socketTraffic)")
+        XCTAssertEqual(requestBytes, 0, "the --json refusal must not send a request either")
 
         let document = try XCTUnwrap(
             JSONSerialization.jsonObject(with: Data(result.stdout.utf8)) as? [String: Any],
