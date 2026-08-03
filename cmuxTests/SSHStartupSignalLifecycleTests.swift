@@ -417,6 +417,21 @@ extension CLINotifyProcessIntegrationRegressionTests {
     }
 
     func testSSHRawRemoteCommandReportsReadinessWithoutGatingUserCommand() throws {
+        // Dead premise: this test stages a fake `ssh` on PATH, but the CLI's
+        // interactive-auth path execs `/usr/bin/ssh` by absolute path on purpose
+        // (`allowedSSHPaths` in CLI/cmux.swift's runInteractiveAuthSSH -- a
+        // basename check would accept a planted /tmp/ssh, so the full path is
+        // pinned against an argv that arrives over the control socket). The fake
+        // is therefore never exec'd and the real ssh cannot resolve the fixture
+        // host, so this can only ever fail. The pin itself is covered by
+        // testInteractiveAuthRefusesPlantedAbsoluteSSHPath and its siblings.
+        // Re-enable if an injectable transport seam is ever added; do not fix by
+        // relaxing the pin.
+        throw XCTSkip(
+            "stages a fake ssh on PATH; the CLI pins /usr/bin/ssh by absolute path "
+            + "(runInteractiveAuthSSH allowedSSHPaths), so the fixture is unreachable"
+        )
+
         let fileManager = FileManager.default
         let root = fileManager.temporaryDirectory
             .appendingPathComponent(
