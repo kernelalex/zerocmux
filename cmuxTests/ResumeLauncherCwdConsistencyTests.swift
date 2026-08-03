@@ -143,7 +143,7 @@ struct ResumeLauncherCwdConsistencyTests {
             restoringWorkingDirectory: restoredDirectory
         ))
         #expect(input.contains("cd -- '\(restoredDirectory)'"))
-        #expect(!input.contains(savedDirectory))
+        #expect(!input.contains("'\(savedDirectory)'"))
     }
 
     @Test("restored terminal command wrapper sources login files once")

@@ -12,7 +12,13 @@ import Testing
 @MainActor
 @Suite(.serialized)
 struct RemoteTmuxMirrorRenameTests {
-    @Test func everyMultiPaneSurfaceRenamesItsOwningTmuxWindow() throws {
+    @Test func everyMultiPaneSurfaceRenamesItsOwningTmuxWindow() async throws {
+        try await AppContextSerialGate.withExclusiveAppContext {
+            try exerciseEveryMultiPaneSurfaceRename()
+        }
+    }
+
+    private func exerciseEveryMultiPaneSurfaceRename() throws {
         let harness = try RemoteTmuxMirrorRenameHarness()
         defer { harness.tearDown() }
 
@@ -116,7 +122,13 @@ struct RemoteTmuxMirrorRenameTests {
         ])
     }
 
-    @Test func routedRemotePaneRenamesItsWindowInsteadOfTheFocusedWindow() throws {
+    @Test func routedRemotePaneRenamesItsWindowInsteadOfTheFocusedWindow() async throws {
+        try await AppContextSerialGate.withExclusiveAppContext {
+            try exerciseRoutedRemotePaneRename()
+        }
+    }
+
+    private func exerciseRoutedRemotePaneRename() throws {
         let harness = try RemoteTmuxMirrorRenameHarness(includeSecondWindow: true)
         defer { harness.tearDown() }
 

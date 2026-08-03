@@ -278,11 +278,12 @@ extension SessionRemoteWorkspaceSnapshot {
             shellFeatures: RemoteInteractiveShellBootstrapBuilder.shellFeatures(),
             configuredRemoteCommand: configuredRemoteCommand,
             bundledZshIntegration: RemoteInteractiveShellBootstrapBuilder
-                .bundledShellIntegrationScript(named: "cmux-zsh-integration.zsh"),
+                .bundledShellIntegrationScript(named: "zerocmux-zsh-integration.zsh"),
             bundledBashIntegration: RemoteInteractiveShellBootstrapBuilder
-                .bundledShellIntegrationScript(named: "cmux-bash-integration.bash"),
+                .bundledShellIntegrationScript(named: "zerocmux-bash-integration.bash"),
             bundledFishIntegration: RemoteInteractiveShellBootstrapBuilder
                 .bundledShellIntegrationScript(named: "fish/config.fish"),
+            protectsPersistentPTYFromHangup: false,
             terminalProfile: terminalProfile
         )
         let failureMessage = String(
@@ -388,14 +389,15 @@ extension SessionRemoteWorkspaceSnapshot {
                 shellFeatures: RemoteInteractiveShellBootstrapBuilder.shellFeatures(),
                 configuredRemoteCommand: configuredRemoteCommand,
                 bundledZshIntegration: RemoteInteractiveShellBootstrapBuilder.bundledShellIntegrationScript(
-                    named: "cmux-zsh-integration.zsh"
+                    named: "zerocmux-zsh-integration.zsh"
                 ),
                 bundledBashIntegration: RemoteInteractiveShellBootstrapBuilder.bundledShellIntegrationScript(
-                    named: "cmux-bash-integration.bash"
+                    named: "zerocmux-bash-integration.bash"
                 ),
                 bundledFishIntegration: RemoteInteractiveShellBootstrapBuilder.bundledShellIntegrationScript(
                     named: "fish/config.fish"
                 ),
+                protectsPersistentPTYFromHangup: false,
                 terminalProfile: terminalProfile
             )
             if let staging = RemoteBootstrapStagingCommandBuilder(

@@ -11,6 +11,7 @@ enum RemoteInteractiveShellBootstrapBuilder {
         bundledZshIntegration: String? = nil,
         bundledBashIntegration: String? = nil,
         bundledFishIntegration: String? = nil,
+        protectsPersistentPTYFromHangup: Bool = true,
         terminalProfile: WorkspaceRemoteTerminalProfile = .shell
     ) -> String {
         let shellStateDir = shellStateDirForRemoteRelayPort(remoteRelayPort)
@@ -19,7 +20,8 @@ enum RemoteInteractiveShellBootstrapBuilder {
             remoteRelayPort: remoteRelayPort,
             shellStateDir: shellStateDir,
             shellFeatures: shellFeatures,
-            terminfoSource: terminfoSource
+            terminfoSource: terminfoSource,
+            protectsPersistentPTYFromHangup: protectsPersistentPTYFromHangup
         )
         var zshShellLines = commonShellExportLines
         zshShellLines.append(
@@ -42,8 +44,13 @@ enum RemoteInteractiveShellBootstrapBuilder {
         let chainedRemoteCommandLaunch = chainedRemoteCommand.flatMap { command -> String? in
             guard !command.isEmpty else { return nil }
             // Match sshd's normal RemoteCommand execution through the account
-            // shell while retaining cmux's persistent-PTY hangup protection.
-            return "exec \"$CMUX_PERSISTENT_PTY_EXEC_HELPER\" --internal-persistent-pty-exec \"$CMUX_LOGIN_SHELL\" \"$CMUX_LOGIN_SHELL\" -c \(shellQuote(command))"
+            // shell. Persistent PTYs retain hangup protection; generic
+            // transports preserve the shell's normal signal behavior.
+            return shellLaunchCommand(
+                executableExpression: "$CMUX_LOGIN_SHELL",
+                arguments: "-c \(shellQuote(command))",
+                protectsPersistentPTYFromHangup: protectsPersistentPTYFromHangup
+            )
         }
 
         var outerLines: [String] = [
@@ -75,9 +82,13 @@ enum RemoteInteractiveShellBootstrapBuilder {
             ]
         }
         outerLines.append(contentsOf: commonShellExportLines)
+        outerLines.append("CMUX_LOGIN_SHELL=\"${SHELL:-/bin/zsh}\"")
+        if protectsPersistentPTYFromHangup {
+            outerLines.append(
+                "if [ -z \"${CMUX_PERSISTENT_PTY_EXEC_HELPER:-}\" ] || [ ! -x \"$CMUX_PERSISTENT_PTY_EXEC_HELPER\" ]; then exit 126; fi"
+            )
+        }
         outerLines += [
-            "CMUX_LOGIN_SHELL=\"${SHELL:-/bin/zsh}\"",
-            "if [ -z \"${CMUX_PERSISTENT_PTY_EXEC_HELPER:-}\" ] || [ ! -x \"$CMUX_PERSISTENT_PTY_EXEC_HELPER\" ]; then exit 126; fi",
             "case \"${CMUX_LOGIN_SHELL##*/}\" in",
             "  zsh)",
             "    cat > \"$cmux_shell_dir/.zshenv\" <<'CMUXZSHENV'",
@@ -110,8 +121,16 @@ enum RemoteInteractiveShellBootstrapBuilder {
                 profile: terminalProfile,
                 indentation: "    ",
                 directShellCommand: chainedRemoteCommandLaunch
-                    ?? "exec \"$CMUX_PERSISTENT_PTY_EXEC_HELPER\" --internal-persistent-pty-exec \"$CMUX_LOGIN_SHELL\" \"$CMUX_LOGIN_SHELL\" -il",
-                tmuxShellCommand: "export CMUX_REAL_ZDOTDIR=\"${CMUX_REAL_ZDOTDIR:-${ZDOTDIR:-$HOME}}\"; export ZDOTDIR=\"\(shellStateDir)\"; exec \"$CMUX_PERSISTENT_PTY_EXEC_HELPER\" --internal-persistent-pty-exec \"${SHELL:-/bin/zsh}\" \"${SHELL:-/bin/zsh}\" -il"
+                    ?? shellLaunchCommand(
+                        executableExpression: "$CMUX_LOGIN_SHELL",
+                        arguments: "-il",
+                        protectsPersistentPTYFromHangup: protectsPersistentPTYFromHangup
+                    ),
+                tmuxShellCommand: "export CMUX_REAL_ZDOTDIR=\"${CMUX_REAL_ZDOTDIR:-${ZDOTDIR:-$HOME}}\"; export ZDOTDIR=\"\(shellStateDir)\"; " + shellLaunchCommand(
+                    executableExpression: "${SHELL:-/bin/zsh}",
+                    arguments: "-il",
+                    protectsPersistentPTYFromHangup: protectsPersistentPTYFromHangup
+                )
             ),
             "    ;;",
             "  bash)",
@@ -137,8 +156,16 @@ enum RemoteInteractiveShellBootstrapBuilder {
                 profile: terminalProfile,
                 indentation: "    ",
                 directShellCommand: chainedRemoteCommandLaunch
-                    ?? "exec \"$CMUX_PERSISTENT_PTY_EXEC_HELPER\" --internal-persistent-pty-exec \"$CMUX_LOGIN_SHELL\" \"$CMUX_LOGIN_SHELL\" --rcfile \"$cmux_shell_dir/.bashrc\" -i",
-                tmuxShellCommand: "exec \"$CMUX_PERSISTENT_PTY_EXEC_HELPER\" --internal-persistent-pty-exec \"${SHELL:-/bin/bash}\" \"${SHELL:-/bin/bash}\" --rcfile \"\(shellStateDir)/.bashrc\" -i"
+                    ?? shellLaunchCommand(
+                        executableExpression: "$CMUX_LOGIN_SHELL",
+                        arguments: "--rcfile \"$cmux_shell_dir/.bashrc\" -i",
+                        protectsPersistentPTYFromHangup: protectsPersistentPTYFromHangup
+                    ),
+                tmuxShellCommand: shellLaunchCommand(
+                    executableExpression: "${SHELL:-/bin/bash}",
+                    arguments: "--rcfile \"\(shellStateDir)/.bashrc\" -i",
+                    protectsPersistentPTYFromHangup: protectsPersistentPTYFromHangup
+                )
             ),
             "    ;;",
             "  fish)",
@@ -156,21 +183,39 @@ enum RemoteInteractiveShellBootstrapBuilder {
                 profile: terminalProfile,
                 indentation: "    ",
                 directShellCommand: chainedRemoteCommandLaunch
-                    ?? "exec \"$CMUX_PERSISTENT_PTY_EXEC_HELPER\" --internal-persistent-pty-exec \"$CMUX_LOGIN_SHELL\" \"$CMUX_LOGIN_SHELL\" -il --init-command \(fishInitCommand)",
-                tmuxShellCommand: "export CMUX_FISH_INTEGRATION_FILE=\"\(shellStateDir)/fish/config.fish\"; export CMUX_FISH_USER_CONFIG_ALREADY_LOADED=1; exec \"$CMUX_PERSISTENT_PTY_EXEC_HELPER\" --internal-persistent-pty-exec \"${SHELL:-/bin/fish}\" \"${SHELL:-/bin/fish}\" -il --init-command \(fishInitCommand)"
+                    ?? shellLaunchCommand(
+                        executableExpression: "$CMUX_LOGIN_SHELL",
+                        arguments: "-il --init-command \(fishInitCommand)",
+                        protectsPersistentPTYFromHangup: protectsPersistentPTYFromHangup
+                    ),
+                tmuxShellCommand: "export CMUX_FISH_INTEGRATION_FILE=\"\(shellStateDir)/fish/config.fish\"; export CMUX_FISH_USER_CONFIG_ALREADY_LOADED=1; " + shellLaunchCommand(
+                    executableExpression: "${SHELL:-/bin/fish}",
+                    arguments: "-il --init-command \(fishInitCommand)",
+                    protectsPersistentPTYFromHangup: protectsPersistentPTYFromHangup
+                )
             ),
             "    ;;",
             "  *)",
         ]
         outerLines.append(contentsOf: relayWarmupLines)
-        outerLines.append(contentsOf: initialCommandBootstrap.fallbackShellLines)
+        outerLines.append(contentsOf: initialCommandBootstrap.fallbackShellLines(
+            protectsPersistentPTYFromHangup: protectsPersistentPTYFromHangup
+        ))
         outerLines += [
             terminalLaunchLine(
                 profile: terminalProfile,
                 indentation: "",
                 directShellCommand: chainedRemoteCommandLaunch
-                    ?? "exec \"$CMUX_PERSISTENT_PTY_EXEC_HELPER\" --internal-persistent-pty-exec \"$CMUX_LOGIN_SHELL\" \"$CMUX_LOGIN_SHELL\" -i",
-                tmuxShellCommand: "exec \"$CMUX_PERSISTENT_PTY_EXEC_HELPER\" --internal-persistent-pty-exec \"${SHELL:-/bin/sh}\" \"${SHELL:-/bin/sh}\" -i"
+                    ?? shellLaunchCommand(
+                        executableExpression: "$CMUX_LOGIN_SHELL",
+                        arguments: "-i",
+                        protectsPersistentPTYFromHangup: protectsPersistentPTYFromHangup
+                    ),
+                tmuxShellCommand: shellLaunchCommand(
+                    executableExpression: "${SHELL:-/bin/sh}",
+                    arguments: "-i",
+                    protectsPersistentPTYFromHangup: protectsPersistentPTYFromHangup
+                )
             ),
             ";;",
             "esac",
@@ -193,6 +238,19 @@ enum RemoteInteractiveShellBootstrapBuilder {
             shellCommand: tmuxShellCommand
         ).remoteShellCommand
         return indentation + "exec " + command
+    }
+
+    private static func shellLaunchCommand(
+        executableExpression: String,
+        arguments: String,
+        protectsPersistentPTYFromHangup: Bool
+    ) -> String {
+        let executable = "\"\(executableExpression)\""
+        guard protectsPersistentPTYFromHangup else {
+            return "exec \(executable) \(arguments)"
+        }
+        return "exec \"$CMUX_PERSISTENT_PTY_EXEC_HELPER\" "
+            + "--internal-persistent-pty-exec \(executable) \(executable) \(arguments)"
     }
 
     static func shellFeatures(
@@ -240,7 +298,8 @@ enum RemoteInteractiveShellBootstrapBuilder {
         remoteRelayPort: Int,
         shellStateDir: String,
         shellFeatures: String,
-        terminfoSource: String?
+        terminfoSource: String?,
+        protectsPersistentPTYFromHangup: Bool
     ) -> [String] {
         let relaySocket = remoteRelayPort > 0 ? "127.0.0.1:\(remoteRelayPort)" : nil
         var lines = terminalSetupLines(terminfoSource: terminfoSource)
@@ -248,9 +307,11 @@ enum RemoteInteractiveShellBootstrapBuilder {
         lines.append(contentsOf: shellExportLines(shellFeatures: shellFeatures))
         lines.append("export PATH=\"$HOME/.cmux/bin:$PATH\"")
         lines.append("export CMUX_BUNDLED_CLI_PATH=\"$HOME/.cmux/bin/zerocmux\"")
-        lines.append(
-            "export CMUX_PERSISTENT_PTY_EXEC_HELPER=\"${CMUX_PERSISTENT_PTY_EXEC_HELPER:-$CMUX_BUNDLED_CLI_PATH}\""
-        )
+        if protectsPersistentPTYFromHangup {
+            lines.append(
+                "export CMUX_PERSISTENT_PTY_EXEC_HELPER=\"${CMUX_PERSISTENT_PTY_EXEC_HELPER:-$CMUX_BUNDLED_CLI_PATH}\""
+            )
+        }
         lines.append("export CMUX_SHELL_INTEGRATION_DIR=\"\(shellStateDir)\"")
         if let relaySocket {
             lines.append("export CMUX_SOCKET_PATH=\(relaySocket)")

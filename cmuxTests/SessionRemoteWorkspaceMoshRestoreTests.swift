@@ -193,14 +193,15 @@ struct SessionRemoteWorkspaceMoshRestoreTests {
             shellFeatures: RemoteInteractiveShellBootstrapBuilder.shellFeatures(),
             configuredRemoteCommand: configuredRemoteCommand,
             bundledZshIntegration: RemoteInteractiveShellBootstrapBuilder.bundledShellIntegrationScript(
-                named: "cmux-zsh-integration.zsh"
+                named: "zerocmux-zsh-integration.zsh"
             ),
             bundledBashIntegration: RemoteInteractiveShellBootstrapBuilder.bundledShellIntegrationScript(
-                named: "cmux-bash-integration.bash"
+                named: "zerocmux-bash-integration.bash"
             ),
             bundledFishIntegration: RemoteInteractiveShellBootstrapBuilder.bundledShellIntegrationScript(
                 named: "fish/config.fish"
-            )
+            ),
+            protectsPersistentPTYFromHangup: false
         )
         let expectedBootstrapBase64 = Data(expectedBootstrap.utf8).base64EncodedString()
         #expect(configuration.configuredRemoteCommand == configuredRemoteCommand)

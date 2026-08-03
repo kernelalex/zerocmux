@@ -92,7 +92,7 @@ struct ShellStartupMatrixTests {
         )
 
         expectEqual(environment["CMUX_LOAD_GHOSTTY_BASH_INTEGRATION"], nil)
-        expectEqual(environment["PROMPT_COMMAND"], "export CMUX_TEST=1\ncmux-test-command")
+        expectEqual(environment["PROMPT_COMMAND"], "export CMUX_TEST=1\nzerocmux-test-command")
         expectTrue(protectedKeys.contains("PROMPT_COMMAND"))
         expectFalse(protectedKeys.contains("CMUX_LOAD_GHOSTTY_BASH_INTEGRATION"))
     }
@@ -246,7 +246,9 @@ struct ShellStartupMatrixTests {
 
         let script = RemoteInteractiveShellBootstrapBuilder.script(
             remoteRelayPort: 0,
-            shellFeatures: ""
+            shellFeatures: "",
+            initialCommand: ":",
+            protectsPersistentPTYFromHangup: false
         )
         let result = runProcess(
             executablePath: "/usr/bin/env",

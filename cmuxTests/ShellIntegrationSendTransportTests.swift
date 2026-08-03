@@ -19,7 +19,7 @@ struct ShellIntegrationSendTransportTests {
     func remoteZshReportsGitMetadataThroughRelay() throws {
         try assertRemoteShellReportsGitMetadataThroughRelay(
             shell: "/bin/zsh",
-            integrationName: "cmux-zsh-integration.zsh",
+            integrationName: "zerocmux-zsh-integration.zsh",
             shellArguments: ["-f", "-c"]
         )
     }
@@ -28,7 +28,7 @@ struct ShellIntegrationSendTransportTests {
     func remoteBashReportsGitMetadataThroughRelay() throws {
         try assertRemoteShellReportsGitMetadataThroughRelay(
             shell: "/bin/bash",
-            integrationName: "cmux-bash-integration.bash",
+            integrationName: "zerocmux-bash-integration.bash",
             shellArguments: ["--noprofile", "--norc", "-c"]
         )
     }
@@ -37,7 +37,7 @@ struct ShellIntegrationSendTransportTests {
     func remoteTmuxZshReportsWorkspaceScopedGitMetadataThroughRelay() throws {
         try assertRemoteShellReportsGitMetadataThroughRelay(
             shell: "/bin/zsh",
-            integrationName: "cmux-zsh-integration.zsh",
+            integrationName: "zerocmux-zsh-integration.zsh",
             shellArguments: ["-f", "-c"],
             surfaceID: nil
         )
@@ -47,7 +47,7 @@ struct ShellIntegrationSendTransportTests {
     func remoteTmuxBashReportsWorkspaceScopedGitMetadataThroughRelay() throws {
         try assertRemoteShellReportsGitMetadataThroughRelay(
             shell: "/bin/bash",
-            integrationName: "cmux-bash-integration.bash",
+            integrationName: "zerocmux-bash-integration.bash",
             shellArguments: ["--noprofile", "--norc", "-c"],
             surfaceID: nil
         )
@@ -122,7 +122,7 @@ struct ShellIntegrationSendTransportTests {
     func tmuxZshAdoptsSessionWorkspaceBinding() throws {
         try assertTmuxShellAdoptsSessionWorkspaceBinding(
             shell: "/bin/zsh",
-            integrationName: "cmux-zsh-integration.zsh"
+            integrationName: "zerocmux-zsh-integration.zsh"
         )
     }
 
@@ -130,7 +130,7 @@ struct ShellIntegrationSendTransportTests {
     func tmuxBashAdoptsSessionWorkspaceBinding() throws {
         try assertTmuxShellAdoptsSessionWorkspaceBinding(
             shell: "/bin/bash",
-            integrationName: "cmux-bash-integration.bash"
+            integrationName: "zerocmux-bash-integration.bash"
         )
     }
 

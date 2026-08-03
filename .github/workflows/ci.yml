@@ -429,7 +429,7 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: GhosttyKit.xcframework
-          key: ghosttykit-${{ steps.ghostty-revision.outputs.sha }}
+          key: ghosttykit-sentry-off-v1-${{ steps.ghostty-revision.outputs.sha }}
 
       - name: Download pre-built GhosttyKit.xcframework
         if: steps.cache-ghosttykit.outputs.cache-hit != 'true'
@@ -1177,7 +1177,7 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: GhosttyKit.xcframework
-          key: ghosttykit-${{ steps.ghostty-revision.outputs.sha }}
+          key: ghosttykit-sentry-off-v1-${{ steps.ghostty-revision.outputs.sha }}
 
       - name: Validate cached GhosttyKit.xcframework
         id: validate-ghosttykit-package-tests
@@ -1259,18 +1259,12 @@ jobs:
             echo "::group::swift test $pkgdir"
             case "$pkg" in
             CmuxTerminal|CmuxTerminalCore)
-              test_status=0
-              output="$(swift test --package-path "$pkgdir" 2>&1)" || test_status=$?
-              printf '%s\n' "$output"
-              if [ "$test_status" -ne 0 ]; then
-                if printf '%s\n' "$output" | grep -Eq 'Test run with [0-9]+ tests( in [0-9]+ suites)? passed' \
-                  && ! printf '%s\n' "$output" | grep -Eq 'with [1-9][0-9]* failures?' \
-                  && ! printf '%s\n' "$output" | grep -v 'unexpected binary' | grep -Eq '(^|[^a-zA-Z])error:'; then
-                  echo "Tolerated cosmetic GhosttyKit binaryTarget diagnostic; all tests passed."
-                else
-                  exit "$test_status"
-                fi
-              fi
+              # Swift Testing can finish every assertion but leave its aggregate
+              # runner alive when process-global terminal state spans suites.
+              # Run one suite per process so state is torn down deterministically,
+              # while retaining the narrow GhosttyKit diagnostic exception.
+              CMUX_SWIFT_TEST_TOLERATE_GHOSTTY_BINARY_DIAGNOSTIC=1 \
+                ./scripts/ci/run-swift-testing-suites.sh "$pkgdir"
               ;;
             CmuxRemoteWorkspace|CmuxRemoteSession)
               # The Remote* family is timing/subprocess-sensitive on 3-core
@@ -1491,7 +1485,7 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: GhosttyKit.xcframework
-          key: ghosttykit-${{ steps.ghostty-revision.outputs.sha }}
+          key: ghosttykit-sentry-off-v1-${{ steps.ghostty-revision.outputs.sha }}
 
       - name: Download pre-built GhosttyKit.xcframework
         if: steps.cache-ghosttykit-lag.outputs.cache-hit != 'true'
@@ -1809,7 +1803,7 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: GhosttyKit.xcframework
-          key: ghosttykit-${{ steps.ghostty-revision.outputs.sha }}
+          key: ghosttykit-sentry-off-v1-${{ steps.ghostty-revision.outputs.sha }}
 
       - name: Download pre-built GhosttyKit.xcframework
         if: steps.cache-ghosttykit-release.outputs.cache-hit != 'true'

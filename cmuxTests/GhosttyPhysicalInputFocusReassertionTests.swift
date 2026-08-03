@@ -24,7 +24,13 @@ struct GhosttyPhysicalInputFocusReassertionTests {
     }
 
     @Test
-    func printableKeyDownReassertsGhosttyFocusWhenFirstResponderSurfaceFocusDrifted() throws {
+    func printableKeyDownReassertsGhosttyFocusWhenFirstResponderSurfaceFocusDrifted() async throws {
+        try await AppContextSerialGate.withExclusiveAppContext {
+            try exercisePrintableKeyDownFocusReassertion()
+        }
+    }
+
+    private func exercisePrintableKeyDownFocusReassertion() throws {
         let terminal = try makeHostedTerminal()
         defer { terminal.window.orderOut(nil) }
         let hasLiveSurface = terminal.surface.hasLiveSurface
@@ -71,7 +77,13 @@ struct GhosttyPhysicalInputFocusReassertionTests {
     }
 
     @Test
-    func directCommittedTextReassertsGhosttyFocusWhenFirstResponderSurfaceFocusDrifted() throws {
+    func directCommittedTextReassertsGhosttyFocusWhenFirstResponderSurfaceFocusDrifted() async throws {
+        try await AppContextSerialGate.withExclusiveAppContext {
+            try exerciseDirectCommittedTextFocusReassertion()
+        }
+    }
+
+    private func exerciseDirectCommittedTextFocusReassertion() throws {
         let terminal = try makeHostedTerminal()
         defer { terminal.window.orderOut(nil) }
         let hasLiveSurface = terminal.surface.hasLiveSurface
@@ -112,7 +124,13 @@ struct GhosttyPhysicalInputFocusReassertionTests {
     }
 
     @Test
-    func directCommittedTextDoesNotReassertGhosttyFocusWhenDescendantOverlayOwnsFirstResponder() throws {
+    func directCommittedTextDoesNotReassertGhosttyFocusWhenDescendantOverlayOwnsFirstResponder() async throws {
+        try await AppContextSerialGate.withExclusiveAppContext {
+            try exerciseDescendantOverlayFocusPreservation()
+        }
+    }
+
+    private func exerciseDescendantOverlayFocusPreservation() throws {
         let terminal = try makeHostedTerminal()
         defer { terminal.window.orderOut(nil) }
 

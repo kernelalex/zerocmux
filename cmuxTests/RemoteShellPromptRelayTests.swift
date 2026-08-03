@@ -20,7 +20,7 @@ struct RemoteShellPromptRelayTests {
     func remoteZshPromptReportsGitMetadataThroughRelay() throws {
         let output = try runPrompt(
             shell: "/bin/zsh",
-            integrationName: "cmux-zsh-integration.zsh",
+            integrationName: "zerocmux-zsh-integration.zsh",
             shellArguments: ["-f", "-c"],
             promptFunction: "_cmux_precmd",
             mode: "git",
@@ -36,7 +36,7 @@ struct RemoteShellPromptRelayTests {
     func remoteBashPromptReportsGitMetadataThroughRelay() throws {
         let output = try runPrompt(
             shell: "/bin/bash",
-            integrationName: "cmux-bash-integration.bash",
+            integrationName: "zerocmux-bash-integration.bash",
             shellArguments: ["--noprofile", "--norc", "-c"],
             promptFunction: "_cmux_prompt_command",
             mode: "git",
@@ -52,7 +52,7 @@ struct RemoteShellPromptRelayTests {
     func remoteTmuxZshPromptReportsShellStateThroughWorkspaceRelay() throws {
         let output = try runPrompt(
             shell: "/bin/zsh",
-            integrationName: "cmux-zsh-integration.zsh",
+            integrationName: "zerocmux-zsh-integration.zsh",
             shellArguments: ["-f", "-c"],
             promptFunction: "_cmux_precmd",
             mode: "shell-state",
@@ -68,7 +68,7 @@ struct RemoteShellPromptRelayTests {
     func remoteTmuxBashPromptReportsShellStateThroughWorkspaceRelay() throws {
         let output = try runPrompt(
             shell: "/bin/bash",
-            integrationName: "cmux-bash-integration.bash",
+            integrationName: "zerocmux-bash-integration.bash",
             shellArguments: ["--noprofile", "--norc", "-c"],
             promptFunction: "_cmux_prompt_command",
             mode: "shell-state",

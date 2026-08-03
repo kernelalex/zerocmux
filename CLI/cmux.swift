@@ -8647,6 +8647,7 @@ struct CMUXCLI {
                     initialCommand: sshOptions.initialCommand,
                     configuredRemoteCommand: configuredInteractiveRemoteCommand,
                     terminfoSource: terminfoSource,
+                    protectsPersistentPTYFromHangup: effectiveTerminalTransport == .ssh,
                     terminalProfile: sshOptions.terminalProfile
                 )
                 : nil
@@ -9650,6 +9651,7 @@ struct CMUXCLI {
         initialCommand: String? = nil,
         configuredRemoteCommand: String? = nil,
         terminfoSource: String? = nil,
+        protectsPersistentPTYFromHangup: Bool = true,
         terminalProfile: WorkspaceRemoteTerminalProfile = .shell
     ) -> String {
         RemoteInteractiveShellBootstrapBuilder.script(
@@ -9658,9 +9660,10 @@ struct CMUXCLI {
             initialCommand: initialCommand,
             configuredRemoteCommand: configuredRemoteCommand,
             terminfoSource: terminfoSource,
-            bundledZshIntegration: bundledShellIntegrationScript(named: "cmux-zsh-integration.zsh"),
-            bundledBashIntegration: bundledShellIntegrationScript(named: "cmux-bash-integration.bash"),
+            bundledZshIntegration: bundledShellIntegrationScript(named: "zerocmux-zsh-integration.zsh"),
+            bundledBashIntegration: bundledShellIntegrationScript(named: "zerocmux-bash-integration.bash"),
             bundledFishIntegration: bundledShellIntegrationScript(named: "fish/config.fish"),
+            protectsPersistentPTYFromHangup: protectsPersistentPTYFromHangup,
             terminalProfile: terminalProfile
         )
     }

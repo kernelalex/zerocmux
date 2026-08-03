@@ -259,6 +259,7 @@ build_helper() {
     cli-helper
     -Dapp-runtime=none
     -Dcrash-report-subdir=zerocmux/crash
+    -Dsentry=false
     -Demit-macos-app=false
     -Demit-xcframework=false
     -Doptimize=ReleaseFast

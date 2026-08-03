@@ -1397,7 +1397,11 @@ fn browser_capture_scale_applies_to_metrics_screencast_and_input() {
                             "sessionId": "session-1",
                             "params": {
                                 "data": "c2NhbGU=",
-                                "metadata": {"deviceWidth": 100, "deviceHeight": 100},
+                                "metadata": {
+                                    "deviceWidth": 100,
+                                    "deviceHeight": 100,
+                                    "timestamp": 10.002
+                                },
                                 "sessionId": 70
                             }
                         }),
