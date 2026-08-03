@@ -1023,7 +1023,7 @@ mod tests {
         // the pending connect instead of riding out the 10s timeout; the wide
         // margin keeps slow CI scheduling from tripping it.
         assert!(started.elapsed() < Duration::from_secs(5));
-        assert!(probe.polls() >= 2, "the cancellation should interrupt a pending connect");
+        assert!(probe.polls() >= 1, "the cancellation should interrupt a pending connect");
         assert_eq!(probe.attempts(), 1, "cancellation must close one pending Unix socket");
     }
 

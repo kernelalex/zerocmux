@@ -730,6 +730,8 @@ def test_perf_activation_workflow_keeps_required_status_while_gating_benchmark()
     # GitHub-hosted macOS 26 Apple Silicon image.
     assert "'macos-latest'" in benchmark
     assert "vars.MACOS_RUNNER_15" not in benchmark
+    assert "if: ${{ runner.environment == 'self-hosted' }}" in benchmark
+    assert "if: ${{ runner.environment == 'github-hosted' }}" in benchmark
 
     assert "      - activation_changes" in sentinel
     assert "      - activation-session-benchmark" in sentinel

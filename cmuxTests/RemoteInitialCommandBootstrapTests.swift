@@ -408,7 +408,7 @@ struct RemoteInitialCommandBootstrapTests {
         #expect(bootstrap.preparationLines.isEmpty)
         #expect(bootstrap.posixInteractiveShellLines.isEmpty)
         #expect(bootstrap.fishInteractiveShellCommand == nil)
-        #expect(bootstrap.fallbackShellLines.isEmpty)
+        #expect(bootstrap.fallbackShellLines(protectsPersistentPTYFromHangup: false).isEmpty)
     }
 
     private func runShell(

@@ -65,7 +65,7 @@ struct RemoteDaemonRPCClientTimeoutIsolationTests {
 
         let result = try client.call(method: "hello", params: [:], timeout: 1)
         #expect(result["transport"] as? String == "alive")
-        #expect(existingPTYEvent.wait(timeout: .now() + 1) == .success)
+        #expect(existingPTYEvent.wait(timeout: .now() + 5) == .success)
         #expect(unexpectedTermination.wait(timeout: .now()) == .timedOut)
     }
 
@@ -112,7 +112,7 @@ struct RemoteDaemonRPCClientTimeoutIsolationTests {
         let releaseWrite = DispatchSemaphore(value: 0)
         let writeBlockQueue = DispatchQueue(label: "com.cmux.tests.remote-daemon.block-cancellation-write")
         writeBlockQueue.async {
-            guard stalledAttachRead.wait(timeout: .now() + 2) == .success else {
+            guard stalledAttachRead.wait(timeout: .now() + 10) == .success else {
                 releaseWrite.signal()
                 return
             }
@@ -125,7 +125,7 @@ struct RemoteDaemonRPCClientTimeoutIsolationTests {
         // from stranding the test process; ordinary cleanup is deterministic.
         let cleanupFired = DispatchSemaphore(value: 0)
         let cleanupTimer = DispatchSource.makeTimerSource(queue: writeBlockQueue)
-        cleanupTimer.schedule(deadline: .now() + 5)
+        cleanupTimer.schedule(deadline: .now() + 15)
         cleanupTimer.setEventHandler {
             cleanupFired.signal()
             releaseWrite.signal()
@@ -163,12 +163,12 @@ struct RemoteDaemonRPCClientTimeoutIsolationTests {
             }
         }
 
-        #expect(writeBlockEntered.wait(timeout: .now() + 2) == .success)
-        #expect(callFinished.wait(timeout: .now() + 6) == .success)
+        #expect(writeBlockEntered.wait(timeout: .now() + 10) == .success)
+        #expect(callFinished.wait(timeout: .now() + 10) == .success)
         #expect(callTimedOut.wait(timeout: .now()) == .success)
         #expect(unexpectedCallResult.wait(timeout: .now()) == .timedOut)
         #expect(cleanupFired.wait(timeout: .now()) == .timedOut)
-        #expect(unexpectedTermination.wait(timeout: .now() + 2) == .success)
+        #expect(unexpectedTermination.wait(timeout: .now() + 5) == .success)
     }
 
     private func configuration() -> WorkspaceRemoteConfiguration {

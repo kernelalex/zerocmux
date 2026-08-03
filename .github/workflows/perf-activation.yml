@@ -243,6 +243,7 @@ jobs:
           fi
 
       - name: Run Cmd-Tab activation benchmark
+        if: ${{ runner.environment == 'self-hosted' }}
         run: |
           set -euo pipefail
           APP_PATH="$HOME/Library/Developer/Xcode/DerivedData/zerocmux-$PERF_TAG/Build/Products/Debug/zerocmux DEV $PERF_TAG.app"
@@ -263,6 +264,11 @@ jobs:
               > perf-results/cmd-tab-activation.txt
           fi
           cat perf-results/cmd-tab-activation.txt
+
+      - name: Note unavailable Cmd-Tab activation benchmark
+        if: ${{ runner.environment == 'github-hosted' }}
+        run: |
+          echo "Cmd-Tab activation requires a self-hosted macOS runner with an Aqua console session; the app activation-session benchmark still ran." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Write benchmark summary
         if: always()

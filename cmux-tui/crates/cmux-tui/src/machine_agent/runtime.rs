@@ -2579,6 +2579,10 @@ mod tests {
             Message::GenerationRejected(GenerationRejected { generation: 5, ref code })
                 if code.as_str() == expected_code
         ));
+        let report_deadline = Instant::now() + Duration::from_secs(5);
+        while reporter.migrations.load(Ordering::Relaxed) == 0 && Instant::now() < report_deadline {
+            thread::sleep(Duration::from_millis(1));
+        }
         assert_eq!(*reporter.diagnostics.lock().unwrap(), vec![expected_diagnostic]);
         assert_eq!(reporter.migrations.load(Ordering::Relaxed), 1);
 

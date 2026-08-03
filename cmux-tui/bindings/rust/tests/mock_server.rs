@@ -1116,13 +1116,12 @@ fn acknowledged_stream_remains_open_past_the_request_timeout() {
         drop(control);
     });
 
-    let client = cmux::Client::connect(
-        Config::from_socket_path(&path).with_timeout(Duration::from_millis(50)),
-    )
-    .unwrap();
+    let client = connect(&path);
+    let options = RequestOptions::new().with_timeout(Duration::from_millis(50)).unwrap();
     let mut events = client
-        .session(SessionId::parse(SESSION).unwrap())
-        .events(EventStreamOptions::default())
+        .with_request_options(options, || {
+            client.session(SessionId::parse(SESSION).unwrap()).events(EventStreamOptions::default())
+        })
         .unwrap();
     let item = events.recv().unwrap().unwrap();
     assert!(matches!(item.value, SessionEvent::Unknown { .. }));

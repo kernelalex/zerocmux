@@ -47,6 +47,10 @@ to the GitHub-hosted macOS 26 ARM64 image. This avoids the repository's
 historical self-hosted `macos-26` label collision. The compatibility lane
 asserts the expected architecture and OS major at runtime.
 
+The activation-session performance benchmark runs on GitHub-hosted macOS, but
+its real Cmd-Tab and Core Graphics visibility probe requires an Aqua console
+session and is limited to explicit self-hosted macOS diagnostic runs.
+
 `perf-activation.yml` and `test-e2e.yml` default their `auto` choice to
 `macos-latest`. They retain explicit Warp and Tart choices for manual
 diagnostics only. `reload-build.yml` also defaults to `macos-latest`, but its
