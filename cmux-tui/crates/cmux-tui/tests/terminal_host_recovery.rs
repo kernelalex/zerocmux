@@ -85,7 +85,7 @@ impl RecoveryHarness {
             });
         }
         harness.child = Some(command.spawn().unwrap());
-        wait_for_socket(&harness.socket);
+        harness.await_socket();
         harness
     }
 
@@ -94,7 +94,7 @@ impl RecoveryHarness {
         let mut command = harness.daemon_command();
         command.env("CMUX_TUI_TEST_HOSTED_SPAWN_FAIL_AFTER_CONNECT", delay_ms.to_string());
         harness.child = Some(command.spawn().unwrap());
-        wait_for_socket(&harness.socket);
+        harness.await_socket();
         harness
     }
 
@@ -115,11 +115,22 @@ impl RecoveryHarness {
         }
     }
 
+    fn daemon_stderr_log(&self) -> PathBuf {
+        self.dir.join("daemon.stderr")
+    }
+
+    fn await_socket(&mut self) {
+        let socket = self.socket.clone();
+        let stderr_log = self.daemon_stderr_log();
+        let child = self.child.as_mut().expect("daemon was not spawned");
+        wait_for_daemon_socket(&socket, child, &stderr_log);
+    }
+
     fn restart(&mut self) {
         assert!(self.child.is_none());
         let child = self.daemon_command().spawn().unwrap();
         self.child = Some(child);
-        wait_for_socket(&self.socket);
+        self.await_socket();
     }
 
     fn daemon_command(&self) -> Command {
@@ -130,7 +141,15 @@ impl RecoveryHarness {
             .arg("--state")
             .arg(&self.state)
             .stdout(Stdio::null())
-            .stderr(Stdio::null());
+            // Keep the daemon's startup diagnostics: a server that never binds
+            // is unactionable without them.
+            .stderr(Stdio::from(
+                fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(self.daemon_stderr_log())
+                    .unwrap(),
+            ));
         if let Some(delay_ms) = self.host_ready_delay_ms {
             command.env("CMUX_TUI_TEST_HOST_READY_DELAY_MS", delay_ms.to_string());
         }
@@ -2874,15 +2893,44 @@ fn resource_request(
     response["result"].clone()
 }
 
-fn wait_for_socket(path: &Path) {
-    let deadline = Instant::now() + Duration::from_secs(15);
-    while Instant::now() < deadline {
+/// Wait for a freshly spawned daemon to accept control connections.
+///
+/// A daemon that dies during startup is a deterministic failure, so report it
+/// the moment it exits instead of spinning out the deadline on a process that
+/// can never bind. The remaining bound is liveness only: startup replays the
+/// persisted terminal-host records first, and that recovery carries its own
+/// multi-second handshake/ownership deadlines, so an oversubscribed runner must
+/// not be mistaken for a hung server.
+fn wait_for_daemon_socket(path: &Path, child: &mut Child, stderr_log: &Path) {
+    let deadline = Instant::now() + Duration::from_secs(60);
+    loop {
         if transport::connect(path).is_ok() {
             return;
         }
+        if let Some(status) = child.try_wait().unwrap() {
+            panic!(
+                "daemon exited with {status} before accepting connections at {}\nstderr:\n{}",
+                path.display(),
+                daemon_stderr_tail(stderr_log)
+            );
+        }
+        assert!(
+            Instant::now() < deadline,
+            "server did not accept connections at {}\nstderr:\n{}",
+            path.display(),
+            daemon_stderr_tail(stderr_log)
+        );
         std::thread::sleep(Duration::from_millis(25));
     }
-    panic!("server did not accept connections at {}", path.display());
+}
+
+fn daemon_stderr_tail(stderr_log: &Path) -> String {
+    let contents = fs::read_to_string(stderr_log).unwrap_or_default();
+    if contents.is_empty() {
+        return "<empty>".to_string();
+    }
+    let lines: Vec<&str> = contents.lines().collect();
+    lines[lines.len().saturating_sub(40)..].join("\n")
 }
 
 fn wait_for_screen(path: &Path, surface: u64, marker: &str) -> String {
