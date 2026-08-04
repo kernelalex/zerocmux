@@ -1772,9 +1772,11 @@ import Testing
         try fileManager.createDirectory(at: themesURL, withIntermediateDirectories: true)
         try writeTheme(named: "Theme A", background: "#101010", to: themesURL)
 
-        let socketPath = "/tmp/zerocmux-debug-active-theme-\(UUID().uuidString).sock"
+        let socketSlug = "active-theme-\(UUID().uuidString.lowercased())"
+        let socketPath = "/tmp/zerocmux-debug-\(socketSlug).sock"
         let staleBundleIdentifier = "com.kernelalex.zerocmux.debug.stale.theme"
-        let targetBundleIdentifier = "com.kernelalex.zerocmux.debug.active.theme"
+        let targetBundleSlug = socketSlug.replacingOccurrences(of: "-", with: ".")
+        let targetBundleIdentifier = "com.kernelalex.zerocmux.debug.\(targetBundleSlug)"
         let reloadExpectation = expectation(description: "zerocmux themes set targets the resolved socket bundle")
         let notificationQueue = OperationQueue()
         notificationQueue.maxConcurrentOperationCount = 1
