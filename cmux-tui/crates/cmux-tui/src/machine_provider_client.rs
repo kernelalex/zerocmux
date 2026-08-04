@@ -1589,6 +1589,23 @@ mod tests {
         BearerToken::new(value).expect("valid test token")
     }
 
+    fn write_or_peer_closed(result: io::Result<()>, context: &str) -> bool {
+        match result {
+            Ok(()) => true,
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::BrokenPipe
+                        | io::ErrorKind::ConnectionAborted
+                        | io::ErrorKind::ConnectionReset
+                ) =>
+            {
+                false
+            }
+            Err(error) => panic!("{context}: {error}"),
+        }
+    }
+
     fn received(event: ProviderEvent) -> ReceivedProviderEvent {
         ReceivedProviderEvent { event, delivery: None }
     }
@@ -2502,11 +2519,16 @@ mod tests {
             accept_hello(&mut stream, &mut reader, "provider-secret");
             let request: RequestEnvelope = read_test_frame(&mut reader);
             assert!(matches!(request.request, ProviderRequest::Snapshot(_)));
-            stream
-                .write_all(&vec![b'x'; MAX_CONTROL_FRAME_BYTES + 1])
-                .expect("write oversized frame");
-            stream.write_all(b"\n").expect("finish oversized frame");
-            stream.flush().expect("flush oversized frame");
+            if !write_or_peer_closed(
+                stream.write_all(&vec![b'x'; MAX_CONTROL_FRAME_BYTES + 1]),
+                "write oversized frame",
+            ) {
+                return;
+            }
+            if !write_or_peer_closed(stream.write_all(b"\n"), "finish oversized frame") {
+                return;
+            }
+            let _ = write_or_peer_closed(stream.flush(), "flush oversized frame");
         });
 
         let (provider, _) = ProviderClient::connect_authenticated(
