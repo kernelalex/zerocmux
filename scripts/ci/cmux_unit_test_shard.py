@@ -37,16 +37,10 @@ FALLBACK_TEST_MS = 200
 FOCUSED_GATE_SELECTORS = {
     "cmuxTests/BrowserSystemProxyMirrorTests",
     "cmuxTests/CLISSHSessionAttachAnchorTests",
+    "cmuxTests/CMUXCLIThemeReloadRegressionTests",
     "cmuxTests/GhosttyOptionAsAltModsTests",
     "cmuxTests/RemoteTmuxMirrorLayoutIdentityTests",
     "cmuxTests/SocketACLReloadRegressionTests",
-}
-FOCUSED_METHOD_SELECTORS = {
-    "cmuxTests/CMUXCLIErrorOutputRegressionTests": (
-        "testBareInteractiveThemesReloadsRunningAppAfterPickerExits",
-        "testThemesSetReloadsRunningAppAfterEveryThemeWrite",
-        "testThemesSetTargetsResolvedTaggedSocketWhenBundleEnvironmentIsStale",
-    ),
 }
 # BrowserDeveloperToolsVisibilityPersistenceTests reliably crash-restarts the
 # app host on CI runners (its detached-inspector tests kill the host mid-run;
@@ -318,17 +312,9 @@ def shard_selectors(
 
 
 def write_output(path: Path, selectors: list[TestSelector]) -> None:
-    selected_identifiers = {selector.identifier for selector in selectors}
-    skipped_methods = [
-        f"{suite_identifier}/{method}"
-        for suite_identifier, methods in FOCUSED_METHOD_SELECTORS.items()
-        if suite_identifier in selected_identifiers
-        for method in methods
-    ]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        "".join(f"-only-testing:{selector.identifier}\n" for selector in selectors)
-        + "".join(f"-skip-testing:{identifier}\n" for identifier in skipped_methods),
+        "".join(f"-only-testing:{selector.identifier}\n" for selector in selectors),
         encoding="utf-8",
     )
 

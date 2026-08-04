@@ -1672,7 +1672,7 @@ import Testing
         )
     }
 
-    @Test func testThemesSetReloadsRunningAppAfterEveryThemeWrite() throws {
+    func verifyThemesSetReloadsRunningAppAfterEveryThemeWrite() throws {
         let cliPath = try bundledCLIPath()
         let fileManager = FileManager.default
         let root = fileManager.temporaryDirectory
@@ -1759,7 +1759,7 @@ import Testing
         XCTAssertEqual(responder.receivedRequests, [])
     }
 
-    @Test func testThemesSetTargetsResolvedTaggedSocketWhenBundleEnvironmentIsStale() throws {
+    func verifyThemesSetTargetsResolvedTaggedSocketWhenBundleEnvironmentIsStale() throws {
         let cliPath = try bundledCLIPath()
         let fileManager = FileManager.default
         let root = fileManager.temporaryDirectory
@@ -1891,7 +1891,7 @@ import Testing
         XCTAssertEqual(appReadablePaths, [expectedConfigURL.path])
     }
 
-    @Test func testBareInteractiveThemesReloadsRunningAppAfterPickerExits() throws {
+    func verifyBareInteractiveThemesReloadsRunningAppAfterPickerExits() throws {
         let cliPath = try bundledCLIPath()
         let fileManager = FileManager.default
         let root = fileManager.temporaryDirectory
@@ -2651,6 +2651,24 @@ import Testing
             .split(separator: "\n", omittingEmptySubsequences: false)
             .map(String.init)
             .dropLast())
+    }
+}
+
+@Suite(.serialized)
+struct CMUXCLIThemeReloadRegressionTests {
+    @Test func testThemesSetReloadsRunningAppAfterEveryThemeWrite() throws {
+        try CMUXCLIErrorOutputRegressionTests()
+            .verifyThemesSetReloadsRunningAppAfterEveryThemeWrite()
+    }
+
+    @Test func testThemesSetTargetsResolvedTaggedSocketWhenBundleEnvironmentIsStale() throws {
+        try CMUXCLIErrorOutputRegressionTests()
+            .verifyThemesSetTargetsResolvedTaggedSocketWhenBundleEnvironmentIsStale()
+    }
+
+    @Test func testBareInteractiveThemesReloadsRunningAppAfterPickerExits() throws {
+        try CMUXCLIErrorOutputRegressionTests()
+            .verifyBareInteractiveThemesReloadsRunningAppAfterPickerExits()
     }
 }
 
