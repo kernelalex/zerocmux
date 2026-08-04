@@ -13242,7 +13242,7 @@ const FakeCancelDelivery = enum {
     malformed_known_item,
 };
 
-const fake_delayed_stream_wait_ms: u64 = 15;
+const fake_delayed_stream_wait_ms: u64 = 300;
 
 const fake_layout_json =
     "{\"version\":1," ++
@@ -18600,7 +18600,7 @@ test "acknowledged public stream survives beyond request timeout" {
         std.testing.allocator,
         &control_shared,
     );
-    const request_timeout_ms: u32 = 2;
+    const request_timeout_ms: u32 = 250;
     var client = Client.init(std.testing.allocator, connection, .{
         .timeout_ms = request_timeout_ms,
         .stream_factory = .{

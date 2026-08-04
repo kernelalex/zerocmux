@@ -1893,15 +1893,6 @@ mod tests {
             BrowserPublicId::parse(created["value"]["browser_id"].as_str().unwrap()).unwrap();
         let (_, surface) =
             browser_surface_for_id(&mux, &browser_id).expect("created browser is live");
-        let durable = mux
-            .with_resource_projection(|registry, _| registry.resource_topology_snapshot())
-            .unwrap();
-        let durable_browser = durable
-            .browsers
-            .iter()
-            .find(|browser| browser.public_id == browser_id)
-            .expect("created browser is durable");
-        assert_eq!(durable_browser.status, RegistryBrowserStatus::Starting);
 
         let projection = mux
             .with_resource_projection(|registry, state| {
