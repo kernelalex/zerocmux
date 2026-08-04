@@ -14,6 +14,17 @@ const SESSION: &str = "session_00000000000000000000000000000001";
 const VIEW: &str = "sidebar_view_00000000000000000000000000000002";
 static NEXT_SOCKET: AtomicU64 = AtomicU64::new(1);
 
+fn short_request_timeout() -> Duration {
+    if std::env::var_os("CMUX_TEST_TIMEOUT_SCALE").is_some() {
+        // Stream-opening work is instruction-heavy under valgrind. Keep the
+        // production-sized deadline in normal runs, but give instrumentation
+        // the same two-second bound already used by the neighboring tests.
+        Duration::from_secs(2)
+    } else {
+        Duration::from_millis(50)
+    }
+}
+
 fn socket_path() -> PathBuf {
     std::env::temp_dir().join(format!(
         "cmux-sidebar-test-{}-{}.sock",
@@ -307,16 +318,16 @@ fn runtime_remains_attached_across_idle_request_timeout_and_accepts_late_snapsho
         drop(control);
     });
 
-    let client = cmux::Client::connect(
-        Config::from_socket_path(&path).with_timeout(Duration::from_millis(50)),
-    )
-    .unwrap();
+    let request_timeout = short_request_timeout();
+    let client =
+        cmux::Client::connect(Config::from_socket_path(&path).with_timeout(request_timeout))
+            .unwrap();
     let view = client
         .session(SessionId::parse(SESSION).unwrap())
         .sidebar_view(SidebarViewId::parse(VIEW).unwrap());
     let mut runtime = SidebarRuntime::start(view, SidebarConfig::default()).unwrap();
 
-    thread::sleep(Duration::from_millis(100));
+    thread::sleep(request_timeout.saturating_mul(2));
     assert_eq!(runtime.poll_updates(), 0);
     assert!(matches!(runtime.state(), SidebarRuntimeState::Attached));
     assert!(runtime.model().error.is_none());

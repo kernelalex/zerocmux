@@ -1440,11 +1440,13 @@ fn browser_capture_scale_applies_to_metrics_screencast_and_input() {
     assert_eq!(screencast["params"]["maxWidth"], 100);
     assert_eq!(screencast["params"]["maxHeight"], 100);
 
-    wait_for(
-        || matches!(surface.browser_status(), Some(BrowserStatus::Live)).then_some(()),
+    let frame = wait_for(
+        || surface.browser_frame().filter(|frame| frame.data_b64 == "c2NhbGU="),
         Duration::from_secs(10),
     )
-    .expect("browser went live");
+    .expect("scaled screencast frame arrived");
+    assert_eq!(frame.css_width, 100);
+    assert_eq!(frame.css_height, 100);
     surface.browser_mouse_event("mousePressed", 5_000.0, 5_000.0, Some("left"), Some(1)).unwrap();
     let mouse = recv_method(&seen_rx, "Input.dispatchMouseEvent");
     assert_eq!(mouse["sessionId"], "session-1");

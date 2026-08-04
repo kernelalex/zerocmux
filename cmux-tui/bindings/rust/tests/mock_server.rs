@@ -1072,6 +1072,13 @@ fn streams_are_typed_and_cancel_uses_the_same_scoped_connection() {
 fn acknowledged_stream_remains_open_past_the_request_timeout() {
     let path = socket_path();
     let listener = UnixListener::bind(&path).unwrap();
+    let request_timeout = if std::env::var_os("CMUX_TEST_TIMEOUT_SCALE").is_some() {
+        // Match the proven connection bound used by the surrounding valgrind
+        // tests while keeping the production-sized deadline in normal runs.
+        Duration::from_secs(2)
+    } else {
+        Duration::from_millis(50)
+    };
     let server = thread::spawn(move || {
         let (control, _) = listener.accept().unwrap();
         let (mut stream, _) = listener.accept().unwrap();
@@ -1083,7 +1090,7 @@ fn acknowledged_stream_remains_open_past_the_request_timeout() {
 
         // The request deadline bounds only opening the stream. An acknowledged
         // stream may remain healthy and idle for longer than that deadline.
-        thread::sleep(Duration::from_millis(150));
+        thread::sleep(request_timeout.saturating_mul(2));
         let item = serde_json::to_vec(&json!({
             "protocol": "cmux.protocol/1",
             "type": "stream_item",
@@ -1095,7 +1102,7 @@ fn acknowledged_stream_remains_open_past_the_request_timeout() {
         let midpoint = item.len() / 2;
         stream.write_all(&item[..midpoint]).unwrap();
         stream.flush().unwrap();
-        thread::sleep(Duration::from_millis(150));
+        thread::sleep(request_timeout);
         stream.write_all(&item[midpoint..]).unwrap();
         stream.write_all(b"\n").unwrap();
 
@@ -1117,7 +1124,7 @@ fn acknowledged_stream_remains_open_past_the_request_timeout() {
     });
 
     let client = connect(&path);
-    let options = RequestOptions::new().with_timeout(Duration::from_millis(50)).unwrap();
+    let options = RequestOptions::new().with_timeout(request_timeout).unwrap();
     let mut events = client
         .with_request_options(options, || {
             client.session(SessionId::parse(SESSION).unwrap()).events(EventStreamOptions::default())
