@@ -35,18 +35,4 @@ zerocmux browser surface:7 click e3 --snapshot-after --json > /tmp/action-1.json
 zerocmux browser surface:7 snapshot --interactive > /tmp/snap-2.txt
 ```
 
-### 3. macOS Window Capture (external)
-
-Use an external screen recorder if full-motion capture is required.
-
-## Use Cases
-
-- Debug flaky browser automation.
-- Produce artifacts for CI logs.
-- Document flow changes between releases.
-
-## Best Practices
-
-1. Capture snapshot before and after each mutating action.
-2. Add `--snapshot-after` on clicks/fills/types that change state.
-3. Keep artifacts grouped by timestamp/run id.
+Capture before and after each mutating action, add `--snapshot-after` on state-changing clicks/fills/types, and group artifacts by timestamp or run id. Use an external screen recorder when full-motion capture is genuinely required.

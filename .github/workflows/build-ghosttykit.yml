@@ -15,7 +15,7 @@ env:
 
 jobs:
   build-ghosttykit:
-    runs-on: blacksmith-6vcpu-macos-15
+    runs-on: tartelet
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -43,13 +43,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PRIMARY_TAG="${{ steps.ghosttykit-tag.outputs.tag }}"
-          LEGACY_TAG="xcframework-${{ steps.ghostty-sha.outputs.sha }}"
           if gh release view "$PRIMARY_TAG" --repo "$GHOSTTYKIT_RELEASE_REPO" >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
             echo "Release $PRIMARY_TAG already exists, skipping build"
-          elif [ "$PRIMARY_TAG" != "$LEGACY_TAG" ] && gh release view "$LEGACY_TAG" --repo "$GHOSTTYKIT_RELEASE_REPO" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Legacy release $LEGACY_TAG already exists, skipping build"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "Release $PRIMARY_TAG not found, will build"
@@ -62,7 +58,12 @@ jobs:
           if [ -d "/Applications/Xcode.app/Contents/Developer" ]; then
             XCODE_DIR="/Applications/Xcode.app/Contents/Developer"
           else
-            XCODE_APP="$(ls -d /Applications/Xcode*.app 2>/dev/null | head -n 1 || true)"
+            XCODE_APP=""
+            for candidate in /Applications/Xcode*.app; do
+              [ -d "$candidate" ] || continue
+              XCODE_APP="$candidate"
+              break
+            done
             if [ -n "$XCODE_APP" ]; then
               XCODE_DIR="$XCODE_APP/Contents/Developer"
             else
@@ -109,6 +110,6 @@ jobs:
             --repo "$GHOSTTYKIT_RELEASE_REPO" \
             --prerelease \
             --title "GhosttyKit xcframework (${{ steps.ghostty-sha.outputs.sha }})" \
-            --notes "Pre-built GhosttyKit.xcframework for commit ${{ steps.ghostty-sha.outputs.sha }}" \
+            --notes "Pre-built GhosttyKit.xcframework for commit ${{ steps.ghostty-sha.outputs.sha }} with sentry=false" \
             GhosttyKit.xcframework.tar.gz
           echo "Published release $TAG"

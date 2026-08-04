@@ -13,7 +13,6 @@ import WebKit
 @Suite(.serialized)
 struct BrowserWebContentProcessTests {
     private let recoveryURL = URL(string: "data:text/html,zerocmux-recovery")!
-
     @Test
     func browserPanelsShareDefaultWebsiteDataStore() {
         let first = BrowserPanel(workspaceId: UUID())
@@ -37,6 +36,82 @@ struct BrowserWebContentProcessTests {
         )
 
         #expect(configuration.websiteDataStore === websiteDataStore)
+    }
+
+    @Test
+    func browserPanelUsesExplicitWebsiteDataStoreForAuthenticatedHandoffs() {
+        let websiteDataStore = WKWebsiteDataStore.nonPersistent()
+        let panel = BrowserPanel(
+            workspaceId: UUID(),
+            renderInitialNavigation: false,
+            websiteDataStore: websiteDataStore
+        )
+        defer { panel.close() }
+
+        #expect(panel.websiteDataStore === websiteDataStore)
+        #expect(panel.webView.configuration.websiteDataStore === websiteDataStore)
+    }
+
+    @Test
+    func authenticatedHandoffStoreSurvivesWorkspaceReattachment() {
+        let websiteDataStore = WKWebsiteDataStore.nonPersistent()
+        let panel = BrowserPanel(
+            workspaceId: UUID(),
+            initialURL: recoveryURL,
+            websiteDataStore: websiteDataStore
+        )
+        defer { panel.close() }
+
+        panel.reattachToWorkspace(
+            UUID(),
+            isRemoteWorkspace: false,
+            proxyEndpoint: nil,
+            remoteStatus: nil
+        )
+
+        #expect(panel.websiteDataStore === websiteDataStore)
+        #expect(panel.webView.configuration.websiteDataStore === websiteDataStore)
+    }
+
+    @Test
+    func authenticatedHandoffStoreCannotSwitchIntoAPersistentProfile() throws {
+        let profile = try #require(
+            BrowserProfileStore.shared.createProfile(
+                named: "Handoff isolation \(UUID().uuidString)"
+            )
+        )
+        defer { _ = BrowserProfileStore.shared.deleteProfile(id: profile.id) }
+        let websiteDataStore = WKWebsiteDataStore.nonPersistent()
+        let panel = BrowserPanel(
+            workspaceId: UUID(),
+            initialURL: recoveryURL,
+            websiteDataStore: websiteDataStore
+        )
+        defer { panel.close() }
+
+        #expect(!panel.switchToProfile(profile.id))
+        #expect(panel.websiteDataStore === websiteDataStore)
+        #expect(panel.webView.configuration.websiteDataStore === websiteDataStore)
+    }
+
+    @Test
+    func browserAppSessionSignOutRevokesTheLivePanelStoreBeforeAsyncCleanup() {
+        let websiteDataStore = WKWebsiteDataStore.nonPersistent()
+        let panel = BrowserPanel(
+            workspaceId: UUID(),
+            initialURL: recoveryURL,
+            websiteDataStore: websiteDataStore
+        )
+        defer { panel.close() }
+
+        panel.resetForAppSessionSignOut()
+
+        #expect(panel.websiteDataStore !== websiteDataStore)
+        #expect(!panel.websiteDataStore.isPersistent)
+        #expect(
+            panel.webView.configuration.websiteDataStore ===
+                panel.websiteDataStore
+        )
     }
 
     @Test
@@ -404,6 +479,30 @@ struct BrowserWebContentProcessTests {
     }
 
     @Test
+    func appSessionSignOutClosesFloatingPopupsBeforeReplacingStore() throws {
+        let panel = BrowserPanel(workspaceId: UUID(), isRemoteWorkspace: false)
+        defer { panel.close() }
+        let authenticatedStore = panel.webView.configuration.websiteDataStore
+        let popupWebView = try #require(
+            panel.createFloatingPopup(
+                configuration: WKWebViewConfiguration(),
+                windowFeatures: WKWindowFeatures()
+            )
+        )
+        let popupWindow = try #require(popupWebView.window)
+        defer { popupWebView.window?.close() }
+
+        #expect(popupWebView.configuration.websiteDataStore === authenticatedStore)
+
+        panel.resetForAppSessionSignOut()
+
+        #expect(!(panel.webView.configuration.websiteDataStore === authenticatedStore))
+        #expect(popupWebView.navigationDelegate == nil)
+        #expect(popupWebView.uiDelegate == nil)
+        #expect(!popupWindow.isVisible)
+    }
+
+    @Test
     func floatingPopupClosesWhenWebContentProcessTerminates() throws {
         let panel = BrowserPanel(workspaceId: UUID(), isRemoteWorkspace: false)
         defer { panel.close() }
@@ -422,7 +521,11 @@ struct BrowserWebContentProcessTests {
         #expect(popupWebView.window == nil)
         #expect(!popupWindow.isVisible)
     }
+
 }
+
+private final class StoreLifetimeProbe {}
+
 
 private final class BrowserWebContentProcessLoadDelegate: NSObject, WKNavigationDelegate {
     private var continuation: CheckedContinuation<Void, Error>?

@@ -4,9 +4,11 @@ set -euo pipefail
 TAG="${CMUX_TAG:-swmob}"
 TTL_SECONDS="3600"
 ROUTE_ID=""
-ROUTE_KIND="tailscale"
+ROUTE_KIND="iroh"
 OUT_DIR=""
 OPEN_HTML="0"
+MAX_ATTEMPTS="${CMUX_ATTACH_QR_MAX_ATTEMPTS:-20}"
+POLL_INTERVAL_SECONDS="${CMUX_ATTACH_QR_POLL_INTERVAL_SECONDS:-0.5}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in

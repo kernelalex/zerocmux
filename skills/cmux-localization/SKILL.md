@@ -9,13 +9,11 @@ Use this skill for any user-facing string change.
 
 ## Hard rules
 
-- All user-facing strings must be localized.
-- Use `String(localized: "key.name", defaultValue: "English text")` for Swift/AppKit/SwiftUI strings.
-- Keys go in `Resources/Localizable.xcstrings` with translations for all supported languages, currently English and Japanese.
-- Never use bare string literals in SwiftUI `Text()`, `Button()`, alert titles, tooltips, menus, or dialogs.
-- Localization audit is required for every user-facing change.
-- `defaultValue`, English fallback text, schema descriptions, or copied English strings do not count as localization.
-- For localized web/docs content, update every supported message catalog, currently `web/messages/en.json` and `web/messages/ja.json`, plus any localized data structures carrying inline translations.
+- Every user-facing string is localized. Never a bare string literal in SwiftUI `Text()`, `Button()`, alert titles, tooltips, menus, or dialogs.
+- Swift/AppKit/SwiftUI: `String(localized: "key.name", defaultValue: "English text")`, with keys in `Resources/Localizable.xcstrings` translated for every supported language (currently English and Japanese).
+- `defaultValue`, English fallback text, schema descriptions, and copied English strings do not count as localization.
+- Localized web/docs content updates every supported message catalog (currently `web/messages/en.json` and `web/messages/ja.json`) plus any localized data structures carrying inline translations.
+- A localization audit is required for every user-facing change.
 
 ## Audit checklist
 
@@ -34,4 +32,6 @@ Every new zerocmux-owned keyboard shortcut must be added to `KeyboardShortcutSet
 
 ## Detailed reference
 
-- Read [references/audit-workflow.md](references/audit-workflow.md) for a deeper audit process, common false positives, and examples of surfaces that count as user-facing.
+- [references/audit-workflow.md](references/audit-workflow.md): what counts as user-facing, search patterns, and handoff wording.
+
+New keyboard shortcuts also need docs and Settings entries; see [../cmux-keyboard-shortcuts/SKILL.md](../cmux-keyboard-shortcuts/SKILL.md).

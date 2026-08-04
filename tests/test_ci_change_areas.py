@@ -661,7 +661,7 @@ def test_macos_jobs_use_lane_specific_xcode_pin_vars() -> None:
         "tests-build-and-lag",
     ]:
         block = workflow_job_block(job_name)
-        assert "CMUX_CI_XCODE_APP: ${{ vars.CMUX_CI_XCODE_APP_MACOS_15 }}" in block
+        assert "CMUX_CI_XCODE_APP: ${{ vars.CMUX_CI_XCODE_APP_MACOS_26 }}" in block
         assert 'CMUX_CI_REQUIRED_MACOS_SDK_MAJOR: "26"' in block
 
     release_block = workflow_job_block("release-build")
@@ -671,7 +671,7 @@ def test_macos_jobs_use_lane_specific_xcode_pin_vars() -> None:
 
 def test_required_macos_topology_keeps_fork_display_job_and_collapsed_helper() -> None:
     # Fork topology: the Ghostty CLI helper build is collapsed into the
-    # swift-package-tests dual-Xcode lane (no standalone
+    # swift-package-tests lane (no standalone
     # release-ghostty-cli-helper job), while the display/UI regressions stay in
     # a dedicated ui-regressions job so functional UI failures and performance
     # regressions remain isolated from tests-build-and-lag.
@@ -680,21 +680,24 @@ def test_required_macos_topology_keeps_fork_display_job_and_collapsed_helper() -
     package_block = workflow_job_block("swift-package-tests")
     ui_block = workflow_job_block("ui-regressions")
 
-    assert "vars.MACOS_RUNNER_DUAL_XCODE" in package_block
+    assert "runs-on: tartelet" in package_block
     assert "\n  release-ghostty-cli-helper:" not in workflow
     assert "Run display UI regressions" not in runtime_block
     assert "DisplayResolutionRegressionUITests" not in runtime_block
     assert 'kill -9 "$VDISPLAY_PID"' in runtime_block
     assert "scripts/ci/virtual-display-lock.sh reap-strays" in runtime_block
     assert runtime_block.rfind("scripts/ci/virtual-display-lock.sh reap-strays") < runtime_block.rfind("scripts/ci/virtual-display-lock.sh release")
-    assert "runs-on: blacksmith-6vcpu-macos-15" in ui_block
+    assert "runs-on: tartelet" in ui_block
     assert "DisplayResolutionRegressionUITests" in ui_block
     assert "BrowserPaneNavigationKeybindUITests" in ui_block
     assert "timeout-minutes: 40" in package_block
-    assert "CMUX_CI_HELPER_XCODE_APP" in package_block
+    # The dual-Xcode SDK-15 helper pin is gone (zig 0.16 links against current
+    # SDKs); the helper's macOS 13 support floor is asserted via minos instead.
+    assert "CMUX_CI_HELPER_XCODE_APP" not in package_block
     assert "/Applications/Xcode_16.4.app" not in package_block
-    assert "Select helper Xcode" in package_block
-    assert "CMUX_CI_REQUIRED_MACOS_SDK_MAJOR=15" in package_block
+    assert "Select Xcode" in package_block
+    assert "CMUX_CI_REQUIRED_MACOS_SDK_MAJOR=15" not in package_block
+    assert '[[ "$HELPER_MINOS" == 13.* ]]' in package_block
 
 def test_remote_tmux_layout_identity_uses_a_nontolerant_focused_gate() -> None:
     block = workflow_job_block("app-host-unit-tests")
@@ -723,9 +726,11 @@ def test_perf_activation_workflow_keeps_required_status_while_gating_benchmark()
 
     assert "needs: activation_changes" in benchmark
     assert "if: ${{ needs.activation_changes.outputs.macos == 'true' }}" in benchmark
-    # The benchmark routes through MACOS_RUNNER_15 (Blacksmith) for all events,
-    # including PRs. Depot remains only as a manual workflow_dispatch override.
-    assert "vars.MACOS_RUNNER_15" in benchmark
+    # RunsOn does not support macOS, so the benchmark's automatic route is the
+    # ephemeral self-hosted Tart pool.
+    assert "'tartelet'" in benchmark
+    assert "vars.MACOS_RUNNER_15" not in benchmark
+    assert "runner.environment == 'github-hosted'" not in benchmark
 
     assert "      - activation_changes" in sentinel
     assert "      - activation-session-benchmark" in sentinel

@@ -2,18 +2,9 @@
 
 zerocmux uses isolated browser contexts per surface. Treat each browser surface as its own session.
 
-**Related**: [authentication.md](authentication.md), [SKILL.md](../SKILL.md)
+## Parallel sessions
 
-## Contents
-
-- [Surface-Based Sessions](#surface-based-sessions)
-- [Isolation Properties](#isolation-properties)
-- [State Persistence](#state-persistence)
-- [Common Patterns](#common-patterns)
-- [Cleanup](#cleanup)
-- [Best Practices](#best-practices)
-
-## Surface-Based Sessions
+Each `cmux browser open` returns a new surface ref; drive them independently.
 
 ```bash
 # session A
@@ -86,9 +77,6 @@ zerocmux close-surface --surface surface:8
 rm -f /tmp/auth-state.json
 ```
 
-## Best Practices
+## Best practices
 
-1. Name/log surfaces in your script output so actions stay attributable.
-2. Keep one task per surface to avoid ref churn.
-3. Save state after successful auth milestones.
-4. Re-snapshot after switching tabs/pages inside a surface.
+Log surface refs in script output so actions stay attributable, keep one task per surface to avoid ref churn, save state after successful auth milestones, and re-snapshot after switching tabs or pages inside a surface.

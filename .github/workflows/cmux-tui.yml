@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   web-frontend:
-    runs-on: ${{ vars.LINUX_RUNNER || 'blacksmith-4vcpu-ubuntu-2404' }}
+    runs-on: runs-on=${{ github.run_id }}-cmux-tui-web/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -50,7 +50,7 @@ jobs:
           npm test
 
   valgrind-leak-check:
-    runs-on: ${{ vars.LINUX_RUNNER || 'blacksmith-4vcpu-ubuntu-2404' }}
+    runs-on: runs-on=${{ github.run_id }}-cmux-tui-valgrind/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -90,7 +90,24 @@ jobs:
           import json
           import sys
 
+          # Valgrind checks integration-test binaries. The lib/bin unit harnesses
+          # mix hundreds of deadline and scheduling assertions whose wall-clock
+          # contracts are invalid under instruction emulation; the complete unit
+          # suite keeps running unmodified in `test (linux)` and `test (macos)`.
+          # Integration targets retain the protocol, PTY, browser, resource, and
+          # SDK lifecycle coverage that can reveal real leaks.
+          INTEGRATION_KIND = "test"
+
+          # Throughput/latency benchmarks are not leak-check subjects either:
+          # valgrind makes their measured bounds meaningless and their fixed
+          # transfer volume dominates this job's budget. The same transport
+          # allocation paths stay covered here by direct_ws_e2e, direct_wss_e2e,
+          # forward_e2e, multi_client_e2e and pty_reconnect_e2e.
+          BENCHMARK_TARGETS = {"interactive_latency_e2e"}
+
           seen = set()
+          skipped = set()
+          skipped_unit_harnesses = set()
           with open("target/cargo-test-binaries.jsonl", "r", encoding="utf-8") as messages:
               with open("target/valgrind-test-binaries.txt", "w", encoding="utf-8") as output:
                   for line in messages:
@@ -103,27 +120,54 @@ jobs:
                       executable = message.get("executable")
                       if not executable or executable in seen:
                           continue
+                      target = message.get("target", {})
+                      name = target.get("name")
+                      if INTEGRATION_KIND not in target.get("kind", []):
+                          skipped_unit_harnesses.add(name or "<unnamed>")
+                          continue
+                      if name in BENCHMARK_TARGETS:
+                          skipped.add(name)
+                          continue
                       seen.add(executable)
                       print(executable, file=output)
 
           if not seen:
               raise SystemExit("cargo did not report any test binaries")
-          print(f"Collected {len(seen)} test binaries", file=sys.stderr)
+          missing = BENCHMARK_TARGETS - skipped
+          if missing:
+              raise SystemExit(f"benchmark exclusion list is stale: {sorted(missing)}")
+          print(
+              f"Collected {len(seen)} integration test binaries "
+              f"(skipped benchmarks: {sorted(skipped)}; "
+              f"unit harnesses: {sorted(skipped_unit_harnesses)})",
+              file=sys.stderr,
+          )
           PY
 
       - name: Run test binaries under valgrind
         working-directory: cmux-tui
+        env:
+          # Valgrind's ~30x slowdown breaks the 50ms ws-latency budget on an
+          # otherwise-correct build; the guarded regression (events serialized
+          # behind a 100ms read poll) inflates far past this bound anyway.
+          CMUX_TEST_WS_LATENCY_BUDGET_MS: "2000"
+          # Process-exit and PTY-reader tests also use bounded polling. Keep
+          # their normal deadlines strict while allowing for instrumentation.
+          CMUX_TEST_TIMEOUT_SCALE: "4"
         run: |
           while IFS= read -r bin; do
             [ -n "$bin" ] || continue
             echo "Running valgrind for $bin"
+            # Valgrind serializes guest execution; a parallel Rust harness can
+            # otherwise starve socket/event worker threads past their deadlines.
             if ! valgrind \
               --error-exitcode=1 \
               --leak-check=full \
               --show-leak-kinds=definite \
               --errors-for-leak-kinds=definite \
               --track-origins=yes \
-              -- "$bin"; then
+              --suppressions=ci/valgrind.supp \
+              -- "$bin" --test-threads=1; then
               echo "Valgrind failed for $bin" >&2
               exit 1
             fi
@@ -131,7 +175,7 @@ jobs:
 
   test:
     name: test (${{ matrix.os }})
-    runs-on: ${{ matrix.os == 'macos' && (vars.MACOS_RUNNER_15 || 'blacksmith-6vcpu-macos-15') || (vars.LINUX_RUNNER || 'blacksmith-4vcpu-ubuntu-2404') }}
+    runs-on: ${{ matrix.os == 'macos' && 'tartelet' || format('runs-on={0}-cmux-tui-test-{1}/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco', github.run_id, matrix.os) }}
     timeout-minutes: 40
     strategy:
       fail-fast: false
@@ -172,6 +216,12 @@ jobs:
         working-directory: cmux-tui
         run: cargo test --workspace --locked
 
+      - name: crossterm parser tests
+        working-directory: cmux-tui
+        # Crossterm's vendored color tests mutate process-global NO_COLOR and
+        # its memoized color flag, so the library suite is not parallel-safe.
+        run: cargo test --manifest-path vendor/crossterm/Cargo.toml --lib -- --test-threads=1
+
       - name: TUI smoke test (scripted pty)
         working-directory: cmux-tui
         run: |
@@ -180,7 +230,7 @@ jobs:
 
       # The attach smoke is temporarily opt-in: at the merged upstream pin an
       # attached client can enter a redraw livelock (an identical cursor-park
-      # frame repeated forever) that saturates this repo's Blacksmith runners
+      # frame repeated forever) that saturates this repo's CI runners
       # and fails the first-attach echo assertion; upstream's faster hosted
       # runners absorb it and their CI is green over the same runtime. The
       # renderer fix-train landed upstream post-pin and arrives at the next
@@ -194,10 +244,10 @@ jobs:
       - name: Detach/reattach smoke skip notice
         if: ${{ vars.CMUX_TUI_SMOKE_ENABLED != 'true' }}
         run: |
-          echo "::notice::attach smoke skipped: pin-era redraw livelock saturates Blacksmith runners; re-enable by setting repo variable CMUX_TUI_SMOKE_ENABLED=true after the next upstream sync brings the post-pin renderer fix-train (documented in task-11b-report round 9)"
+          echo "::notice::attach smoke skipped: pin-era redraw livelock saturates CI runners; re-enable by setting repo variable CMUX_TUI_SMOKE_ENABLED=true after the next upstream sync brings the post-pin renderer fix-train (documented in task-11b-report round 9)"
 
   bindings-e2e:
-    runs-on: ${{ vars.LINUX_RUNNER || 'blacksmith-4vcpu-ubuntu-2404' }}
+    runs-on: runs-on=${{ github.run_id }}-cmux-tui-bindings/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -235,6 +285,26 @@ jobs:
         working-directory: cmux-tui
         run: cargo build -p cmux-tui
 
+      - name: Install TypeScript binding dependencies
+        # The conformance runner and e2e.sh build the TypeScript SDK with
+        # `npm run build`; install its pinned devDependencies (typescript,
+        # @types/node) instead of relying on whatever global toolchain the
+        # runner image happens to carry.
+        working-directory: cmux-tui/bindings/typescript
+        run: npm ci --no-audit --no-fund
+
+      - name: Install zig for SDK conformance adapters
+        # The Zig SDK and its conformance adapters target Zig 0.15.2 (see
+        # bindings/conformance/README.md and cmux-tui-sdks.yml), while the
+        # ghostty-derived toolchain installed above serves the cmux-tui server
+        # build, which runs before this step. This publishes the SDK compiler
+        # on PATH and as CMUX_ZIG for the conformance steps below.
+        run: >-
+          ZIG_REQUIRED=0.15.2
+          ZIG_FORCE_LOCAL_INSTALL=1
+          ZIG_INSTALL_ROOT="$RUNNER_TEMP/zig-sdk-conformance"
+          ./scripts/install-zig-ci.sh
+
       - name: Python conformance fixtures
         run: python3 cmux-tui/bindings/conformance/runner.py
 
@@ -252,10 +322,17 @@ jobs:
       - name: Init ghostty submodule
         run: git submodule update --init --depth 1 ghostty
 
+      - name: Resolve Ghostty Zig version
+        id: ghostty-zig-version
+        shell: bash
+        run: |
+          version="$(bash ./scripts/ghostty-zig-version.sh)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Install zig
         uses: mlugg/setup-zig@8d6198c65fb0feaa111df26e6b467fea8345e46f # v2.0.5
         with:
-          version: 0.15.2
+          version: ${{ steps.ghostty-zig-version.outputs.version }}
 
       - name: Install Rust GNU target
         shell: bash

@@ -13,3 +13,4 @@ func startSettingsObservation(_ models: [any SettingObservationStarting]) {
 extension DefaultsValueModel: SettingObservationStarting {}
 extension JSONValueModel: SettingObservationStarting {}
 extension SecretValueModel: SettingObservationStarting {}
+extension DesktopNotificationAuthorizationModel: SettingObservationStarting {}

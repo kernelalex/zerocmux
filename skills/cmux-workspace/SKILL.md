@@ -7,9 +7,13 @@ description: "Work inside the current zerocmux workspace and terminal. Use for z
 
 Use this skill when a task should be scoped to the zerocmux workspace that invoked the agent. A workspace is the sidebar tab-like unit in zerocmux. It contains split panes, and each pane contains one or more surfaces. A surface is the terminal or browser session the user interacts with.
 
-## Default Rule
+- **Window**: a macOS cmux window.
+- **Workspace**: a sidebar entry. The UI calls it a tab; CLI/socket APIs call it a workspace.
+- **Pane**: a split region inside a workspace.
+- **Surface**: a tab inside a pane, terminal or browser.
+- **Panel**: internal content type inside a surface. Prefer CLI surface commands over panel internals.
 
-Scope actions to the current caller workspace unless the user explicitly asks for another workspace, another window, or global state.
+## Default rule
 
 Do not assume the visually focused zerocmux workspace is the right target. An agent can be running in one workspace while the user is looking at another. Prefer the caller environment first:
 
@@ -23,19 +27,11 @@ zerocmux identify --json
 
 Use `CMUX_WORKSPACE_ID` as the default workspace anchor and `CMUX_SURFACE_ID` as the default caller terminal/surface anchor. If those are missing, use `zerocmux identify --json` and be explicit that you are using the currently focused zerocmux context.
 
-## Non-Disruptive Automation
+## Non-disruptive automation
 
-The user may be visually focused on a different workspace, window, or app while an agent works in the caller workspace. Treat layout and focus as separate concerns. Never call focus-changing verbs speculatively.
+Treat layout and focus as separate concerns. `select-workspace`, `focus-pane`, `focus-panel`, and focus-changing `tab-action` verbs are user-affecting actions, like clicks. Never call them speculatively, even inside the caller's own workspace, since the user may be looking elsewhere.
 
-Never call these without an explicit user ask:
-
-- `select-workspace` switches the visible sidebar tab.
-- `focus-pane` / `focus-panel` yanks pane or surface focus.
-- `tab-action` with focus-changing actions.
-
-These are user-affecting actions, like clicks. The rule applies even inside the caller's own workspace, since the user may be looking elsewhere.
-
-Build layout additively, in one shot. Prefer commands that create a new pane already populated with the right surface:
+Build layout additively in one shot, using commands that create a pane already populated with the right surface:
 
 ```bash
 # pane and content in one call, no follow-up needed
@@ -43,11 +39,11 @@ zerocmux new-pane --workspace "${CMUX_WORKSPACE_ID}" --type browser --direction 
 zerocmux new-pane --workspace "${CMUX_WORKSPACE_ID}" --type terminal --direction down
 ```
 
-Avoid create-then-move-then-focus chains. If a layout command rejects a valid `surface:` or `pane:` ref, do not work around it by focusing. Report the bug to the user and stop.
+Avoid create-then-move-then-focus chains. Pass `--focus false` wherever the verb supports it (`move-surface --focus false` preserves the user's attention; more commands may grow the flag, see https://github.com/manaflow-ai/cmux/issues/1418 and https://github.com/manaflow-ai/cmux/issues/2820). If a layout command rejects a valid `surface:` or `pane:` ref, report the bug and stop rather than working around it by focusing.
 
 Pass `--focus false` whenever the verb supports it. `move-surface --focus false` preserves the user's current attention. Other commands may grow the same flag over time (https://github.com/kernelalex/zerocmux/issues/1418, https://github.com/kernelalex/zerocmux/issues/2820).
 
-## Right-Side Helper Pane
+For auxiliary output (preview apps, TUIs, logs, one-off shells, browser checks), reuse one helper pane to the right of the caller terminal. Inspect first with `cmux identify --json`, `cmux list-panes`, and `cmux list-pane-surfaces`, then:
 
 When opening auxiliary output for the current task (preview apps, TUIs, logs, one-off shells, browser checks), keep the workspace organized by reusing a helper pane to the right of the caller terminal.
 
@@ -65,16 +61,15 @@ Use this policy:
   ```bash
   zerocmux new-surface --workspace "${CMUX_WORKSPACE_ID:-}" --pane pane:<helper> --type terminal --focus false
   ```
-- If there is no helper pane, create exactly one right-side pane:
+- No helper pane: create exactly one.
   ```bash
   zerocmux new-pane --workspace "${CMUX_WORKSPACE_ID:-}" --type terminal --direction right --focus false
   ```
-- If there are multiple obvious stale helper panes from this same automation and the user asked to tidy or reuse, keep one right helper pane and clean up the duplicates. Do not close panes you cannot confidently identify as stale helper output.
-- Send commands to the new or reused helper surface by explicit surface ref. Do not focus it unless the user asks.
+- Multiple obvious stale helper panes from this same automation, and the user asked to tidy: keep one and clean up duplicates. Never close a pane you cannot confidently identify as stale helper output.
 
-This means repeated "open it" requests should normally create tabs inside the existing right helper pane, not more splits.
+Send commands to the new or reused surface by explicit surface ref. Repeated "open it" requests create tabs inside the existing right helper pane, not more splits.
 
-## Hierarchy
+## Caller terminal
 
 - Window: a macOS zerocmux window.
 - Workspace: a sidebar entry. The UI may call it a tab, but CLI/socket APIs call it a workspace.
@@ -135,7 +130,7 @@ zerocmux send --surface "${CMUX_SURFACE_ID:-}" "git status\n"
 zerocmux send-key --surface "${CMUX_SURFACE_ID:-}" enter
 ```
 
-Do not send keystrokes, close surfaces, or change focus in other workspaces unless the user asked for that target.
+Do not send keystrokes, close surfaces, or change focus in another workspace unless the user named that target.
 
 ## Moving Surfaces
 
@@ -161,11 +156,9 @@ zerocmux drag-surface-to-split --surface surface:240 down
 
 Known papercut: `drag-surface-to-split` currently routes through V1 and resolves the workspace via UI focus, so it can fail with `ERROR: Surface not found` when the caller's workspace is not the visually focused one. Tracked at https://github.com/kernelalex/zerocmux/issues/1901, related to https://github.com/kernelalex/zerocmux/issues/3189. Until that lands, prefer building the layout additively (see Non-Disruptive Automation above) over create-then-split.
 
-Do not call `focus-pane` or `focus-panel` to recover from a failed move. Report the failure and stop.
+## Sidebar state
 
-## Sidebar State
-
-Status, progress, and logs should usually be attached to the current workspace so the sidebar reflects this task.
+Attach status, progress, and logs to the current workspace so the sidebar reflects this task.
 
 ```bash
 zerocmux set-status build "running" --workspace "${CMUX_WORKSPACE_ID:-}" --color "#ff9500"
@@ -176,7 +169,7 @@ zerocmux clear-status build --workspace "${CMUX_WORKSPACE_ID:-}"
 zerocmux clear-progress --workspace "${CMUX_WORKSPACE_ID:-}"
 ```
 
-## Contributor Reloads
+## Contributor reloads
 
 For zerocmux app/runtime changes in a zerocmux source checkout, use tagged reloads from the active worktree. A tagged reload creates an isolated app name, bundle ID, debug socket, and DerivedData path.
 
@@ -190,7 +183,7 @@ Never build or launch untagged `zerocmux DEV`. If tests or tools need a socket, 
 CMUX_SOCKET_PATH=/tmp/zerocmux-debug-<short-tag>.sock zerocmux identify --json
 ```
 
-## Socket and Access
+## Socket access
 
 Use the socket path provided by zerocmux before falling back to defaults:
 
@@ -212,14 +205,11 @@ zerocmux ping
 
 ## Rules
 
-- Work in the current caller workspace by default.
-- Use `CMUX_WORKSPACE_ID`, `CMUX_SURFACE_ID`, and `CMUX_SOCKET_PATH` before focused-window fallbacks.
-- Prefer explicit `--workspace` and `--surface` flags for mutating actions.
-- Never call `focus-pane`, `focus-panel`, `select-workspace`, or focus-changing `tab-action` verbs unless the user explicitly asked. The user may be visually on a different workspace, window, or app.
+- Work in the caller workspace by default; prefer explicit `--workspace` and `--surface` flags for mutating actions even when env vars are set, so automation is auditable.
+- Never call `focus-pane`, `focus-panel`, `select-workspace`, or focus-changing `tab-action` verbs unless the user explicitly asked.
 - Pass `--focus false` on `move-surface` and any creation verb that supports it.
-- For auxiliary output, reuse the right-side helper pane; create one only if it does not exist.
-- Build layout additively with `new-pane --type ... --url ...` rather than create-then-move-then-focus chains.
-- If a CLI command rejects a valid surface or pane ref, report it to the user. Do not work around by focusing.
+- Build layout additively with `new-pane --type ... --url ...`, not create-then-move-then-focus.
+- If a CLI command rejects a valid surface or pane ref, report it. Do not work around by focusing.
 - Do not close, focus, move, or send input to another workspace unless the user names that target.
 - Use short refs for chat and command examples. Use UUIDs only for logs, persistence, or debugging.
 - For app/runtime changes in a zerocmux source checkout, reload with `./scripts/reload.sh --tag <tag>` from the worktree before dogfood handoff.

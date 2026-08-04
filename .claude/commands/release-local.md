@@ -1,15 +1,14 @@
 # Release Local
 
-Full end-to-end release built locally. Bumps version, updates changelog, tags, then builds/signs/notarizes/uploads via `scripts/build-sign-upload.sh`.
+Release straight from `main` with no PR, built and published locally.
 
-## Steps
+Follow [release.md](release.md) "Shared prep" (version, changelog, contributors, `./scripts/bump-version.sh`) and its changelog and contributor-credit rules. `skills/cmux-release/SKILL.md` covers the bump and tag mechanics.
 
-### 1. Determine the new version number
+## Delta: no PR, tag on main, local build
 
-- Get the current version from `cmux.xcodeproj/project.pbxproj` (look for `MARKETING_VERSION`)
-- Bump the minor version unless the user specifies otherwise (e.g., 0.54.0 → 0.55.0)
+1. **Commit on main.** Stage `CHANGELOG.md` and `cmux.xcodeproj/project.pbxproj`, commit `Bump version to X.Y.Z`.
 
-### 2. Gather changes and contributors since the last release
+2. **Guard, tag, push.**
 
 - Find the most recent git tag: `git describe --tags --abbrev=0`
 - Get commits since that tag: `git log --oneline <last-tag>..HEAD --no-merges`
@@ -26,19 +25,17 @@ Full end-to-end release built locally. Bumps version, updates changelog, tags, t
   ```
 - Build a deduplicated list of all contributor `@handle`s for the release
 
-### 3. Update the changelog
+   If the guard fails, run `./scripts/bump-version.sh`, commit the build-number bump, and rerun the guard.
 
-- Add a new section at the top of `CHANGELOG.md` with the new version and today's date
-- **Only include changes that affect the end-user experience**
-- Write clear, user-facing descriptions (not raw commit messages)
-- **Credit contributors inline** (see Contributor Credits below)
-- Also update `docs-site/content/docs/changelog.mdx` if it exists
+3. **Build, sign, notarize, upload.**
 
-### 4. Bump the version
+   ```bash
+   ./scripts/build-sign-upload.sh vX.Y.Z
+   ```
 
-- Run: `./scripts/bump-version.sh` (bumps minor by default)
+   The script does GhosttyKit build, xcodebuild, Sparkle key injection, codesigning, notarization of app and DMG, appcast generation, GitHub release upload of `cmux-macos.dmg` and `appcast.xml`, homebrew cask update, cleanup, and `say "cmux release complete"` on success. Pass `--allow-overwrite` only to replace existing assets on the same tag during an emergency reroll. If it fails, run `say "cmux release failed"`.
 
-### 5. Commit, run the pre-tag guard, then tag and push
+4. **Verify and land the homebrew cask.**
 
 - Stage: `CHANGELOG.md`, `cmux.xcodeproj/project.pbxproj`
 - Commit message: `Bump version to X.Y.Z`

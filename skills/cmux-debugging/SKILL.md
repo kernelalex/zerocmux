@@ -7,7 +7,7 @@ description: "Debug logging, Debug menu, runtime pitfalls, typing-latency-sensit
 
 ## Debug event log
 
-When adding debug event instrumentation, put events (keys, mouse, focus, splits, tabs) in the unified DEBUG build log. This is not a blanket requirement to add logs to every new code path. Most temporary probes should be added only during the dogfood debug loop and removed before merge.
+Put debug event instrumentation (keys, mouse, focus, splits, tabs) in the unified DEBUG build log. This is not a requirement to log every new code path; most probes belong to a dogfood debug loop and are removed before merge.
 
 ```bash
 tail -f "$(cat /tmp/zerocmux-last-debug-log-path 2>/dev/null || echo /tmp/zerocmux-debug.log)"
@@ -30,25 +30,23 @@ tail -f "$(cat /tmp/zerocmux-last-debug-log-path 2>/dev/null || echo /tmp/zerocm
 
 ## Debug menu
 
-The app has a **Debug** menu in the macOS menu bar only in DEBUG builds. Use it for visual iteration.
+DEBUG builds get a **Debug** menu in the macOS menu bar. When the user says "debug menu" or "debug window" they mean this, not `defaults write`.
 
-- **Debug > Debug Windows** contains panels for tuning layout, colors, and behavior. Entries are alphabetical with no dividers.
-- To add a debug toggle or visual option: create an `NSWindowController` subclass with a `shared` singleton, add it to the "Debug Windows" menu in `Sources/cmuxApp.swift`, and add a SwiftUI view with `@AppStorage` bindings for live changes.
-- When the user says "debug menu" or "debug window", they mean this menu, not `defaults write`.
+**Debug > Debug Windows** holds panels for tuning layout, colors, and behavior, listed alphabetically with no dividers. To add one: create an `NSWindowController` subclass with a `shared` singleton, register it in the "Debug Windows" menu in `Sources/cmuxApp.swift`, and back it with a SwiftUI view using `@AppStorage` bindings for live changes.
 
 ## Runtime pitfalls
 
-- Custom UTTypes for drag-and-drop must be declared in `Resources/Info.plist` under `UTExportedTypeDeclarations`.
+- Custom drag-and-drop UTTypes must be declared in `Resources/Info.plist` under `UTExportedTypeDeclarations`.
 - Do not add an app-level display link or manual `ghostty_surface_draw` loop; rely on Ghostty wakeups/renderer to avoid typing lag.
-- `WindowTerminalHostView.hitTest()` is typing-latency-sensitive. All divider/sidebar/drag routing is gated to pointer events only. Do not add work outside the `isPointerEvent` guard.
-- `TabItemView` uses `Equatable` conformance plus `.equatable()` to skip body re-evaluation during typing. Do not add environment/store/binding reads without updating equality and the call site.
-- `TerminalSurface.forceRefresh()` is called on every keystroke. Do not add allocations, file I/O, or formatting there.
+- `WindowTerminalHostView.hitTest()` in `Sources/TerminalWindowPortal.swift` runs on every event including keyboard. Add no work outside the `isPointerEvent` guard.
+- `TabItemView` in `Sources/ContentView.swift` uses `Equatable` plus `.equatable()` to skip body re-evaluation during typing. Do not add environment/store/binding reads without updating `==` and keeping `.equatable()` at the call site.
+- `TerminalSurface.forceRefresh()` in `Sources/GhosttyTerminalView.swift` runs on every keystroke. No allocations, file I/O, or formatting.
 - `SurfaceSearchOverlay` must be mounted from `GhosttySurfaceScrollView` in `Sources/GhosttyTerminalView.swift`, not from SwiftUI panel containers.
-- List subtrees with `LazyVStack`, `LazyHStack`, `List`, or `ForEach` must pass immutable row snapshots plus closures below the boundary. Do not pass observable stores into row views.
+- Views below a `LazyVStack` / `LazyHStack` / `List` / `ForEach` boundary receive immutable snapshots plus closures, never an observable store.
 - Functions called from SwiftUI `body` must not mutate state or schedule store writes.
-- Foundation, SwiftUI, AttributeGraph, and WebKit semantics can change between macOS major versions. Test on the reporter's macOS before declaring a user repro disproven.
+- Foundation, SwiftUI, AttributeGraph, and WebKit semantics change between macOS majors. Test on the reporter's macOS before declaring a user repro disproven.
 
 ## Detailed references
 
-- Read [references/debug-event-log.md](references/debug-event-log.md) when adding or interpreting debug log probes.
-- Read [references/runtime-pitfalls.md](references/runtime-pitfalls.md) before touching terminal rendering, hit testing, tab rows, list virtualization, search overlay layering, or OS-version-sensitive code.
+- [references/debug-event-log.md](references/debug-event-log.md): when to add probes and how to name them.
+- [references/runtime-pitfalls.md](references/runtime-pitfalls.md): read before touching terminal rendering, hit testing, tab rows, list virtualization, search overlay layering, or OS-version-sensitive code.

@@ -5,13 +5,7 @@ description: Open markdown files in a formatted viewer panel with live reload. U
 
 # Markdown Viewer with cmux
 
-Use this skill to display markdown files in a dedicated panel with rich formatting and live file watching.
-
-## Core Workflow
-
-1. Write your plan or notes to a `.md` file.
-2. Open it in a markdown panel.
-3. The panel auto-updates when the file changes on disk.
+Write a `.md` file, open it in a panel, and the panel re-renders whenever the file changes on disk. Use it for agent plans and task lists alongside the terminal, documentation and changelogs while working, and notes another process updates progressively.
 
 ```bash
 # Open a markdown file as a split panel next to the current terminal
@@ -24,13 +18,11 @@ zerocmux markdown open /path/to/PLAN.md
 zerocmux markdown open design.md --workspace workspace:2
 ```
 
-## When to Use
+Relative paths resolve against the caller's cwd and `~` expands; the resolved absolute path comes back in the output.
 
-- Displaying an agent plan or task list alongside the terminal
-- Showing documentation, changelogs, or READMEs while working
-- Reviewing notes that update in real-time (e.g., a plan file being written by another process)
+## Agent usage
 
-## Live File Watching
+Write the full plan file first, then open it, so the panel never shows a partially written file. After that, overwrite or append freely: each write triggers a re-render, and atomic replacement (editor saves, `sed -i`, VS Code) is handled.
 
 The panel automatically re-renders when the file changes on disk. This works with:
 
@@ -84,7 +76,7 @@ When creating a plan or task list, write it to a `.md` file and open it in cmux:
 The panel renders markdown with rich formatting and auto-updates when the file changes.
 ```
 
-## Routing
+## Rendering
 
 ```bash
 # Open in the caller's workspace (default -- uses CMUX_WORKSPACE_ID)
@@ -104,22 +96,5 @@ zerocmux markdown open plan.md --window window:1
 
 | Reference | When to Use |
 |-----------|-------------|
-| [references/commands.md](references/commands.md) | Full command syntax and options |
-| [references/live-reload.md](references/live-reload.md) | File watching behavior, atomic writes, edge cases |
-
-## Rendering Support
-
-The markdown panel renders:
-
-- Headings (h1-h6) with dividers on h1/h2
-- Fenced code blocks with monospaced font
-- Inline code with highlighted background
-- Tables with alternating row colors
-- Ordered and unordered lists (nested)
-- Blockquotes with left border
-- Bold, italic, strikethrough
-- Links (clickable)
-- Horizontal rules
-- Images (inline)
-
-Supports both light and dark mode.
+| [references/commands.md](references/commands.md) | Full command syntax, options, output shape, panel behavior |
+| [references/live-reload.md](references/live-reload.md) | File watching, atomic writes, unavailable-file state, performance |

@@ -1,5 +1,7 @@
 import AppKit
 import CmuxCore
+import CmuxPanes
+import WebKit
 
 extension Workspace {
     func browserPanelIncludingDock(for panelId: UUID) -> BrowserPanel? {
@@ -47,7 +49,8 @@ extension Workspace {
             initialRequest: seed.initialRequest,
             focus: true,
             preferredProfileID: panel.profileID,
-            bypassInsecureHTTPHostOnce: seed.bypassInsecureHTTPHostOnce
+            bypassInsecureHTTPHostOnce: seed.bypassInsecureHTTPHostOnce,
+            websiteDataStore: panel.explicitEphemeralWebsiteDataStoreForSibling
         ) != nil
     }
 
@@ -63,7 +66,8 @@ extension Workspace {
                 initialRequest: seed.initialRequest,
                 focus: true,
                 preferredProfileID: panel.profileID,
-                bypassInsecureHTTPHostOnce: seed.bypassInsecureHTTPHostOnce
+                bypassInsecureHTTPHostOnce: seed.bypassInsecureHTTPHostOnce,
+                websiteDataStore: panel.explicitEphemeralWebsiteDataStoreForSibling
             ) != nil
         }
         guard let manager = app.tabManagerFor(tabId: panel.workspaceId) ?? app.tabManager,
@@ -97,7 +101,9 @@ extension DockSplitStore {
         url: URL?,
         initialRequest: URLRequest? = nil,
         preferredProfileID: UUID? = nil,
-        bypassInsecureHTTPHostOnce: String? = nil
+        bypassInsecureHTTPHostOnce: String? = nil,
+        transparentBackground: Bool = false,
+        websiteDataStore: WKWebsiteDataStore? = nil
     ) -> BrowserPanel {
         let settings = currentRemoteBrowserSettings()
         let panel = BrowserPanel(
@@ -106,12 +112,22 @@ extension DockSplitStore {
             initialURL: url,
             initialRequest: initialRequest,
             bypassInsecureHTTPHostOnce: bypassInsecureHTTPHostOnce,
+            transparentBackground: transparentBackground,
             proxyEndpoint: settings.proxyEndpoint,
             bypassRemoteProxy: settings.bypassRemoteProxy,
             isRemoteWorkspace: settings.isRemoteWorkspace,
-            remoteWebsiteDataStoreIdentifier: settings.remoteWebsiteDataStoreIdentifier
+            remoteWebsiteDataStoreIdentifier: settings.remoteWebsiteDataStoreIdentifier,
+            websiteDataStore: websiteDataStore
         )
         panel.setRemoteWorkspaceStatus(settings.remoteStatus)
+        configureBrowserPanel(panel)
+        return panel
+    }
+
+    /// Rebinds host-owned actions whenever a live browser enters this Dock.
+    /// A transferred panel may still carry closures owned by its old Workspace
+    /// or Dock, so configuration is intentionally safe to repeat.
+    func configureBrowserPanel(_ panel: BrowserPanel) {
         panel.webViewDidRequestClose = { [weak self, weak panel] in
             guard let self, let panel else { return }
             guard self.browserPanel(for: panel.id) === panel else { return }
@@ -123,8 +139,14 @@ extension DockSplitStore {
 #endif
             _ = self.closePanel(panel.id, force: true)
         }
-        return panel
     }
+
+
+
+    private func currentBrowserPanel(_ sourcePanel: BrowserPanel) -> Bool {
+        browserPanel(for: sourcePanel.id) === sourcePanel
+    }
+
 
     @discardableResult
     func closePanel(_ panelId: UUID, force: Bool = false) -> Bool {

@@ -4,6 +4,50 @@ BIN = os.path.abspath(os.environ.get("CMUX_TUI_BIN", "target/debug/cmux-tui"))
 SESSION = f"smoke-{os.getpid()}"
 SOCK = None
 CONTROL_SOCKET_RE = re.compile(r"control socket at (.+)$")
+SGR_RE = re.compile(rb"\x1b\[([0-9;]*)m")
+
+
+def sgr_commands(parameters):
+    values = tuple(int(part or b"0") for part in parameters.split(b";"))
+    start = 0
+    while start < len(values):
+        code = values[start]
+        if code in (38, 48) and start + 1 < len(values):
+            mode = values[start + 1]
+            if mode == 5:
+                end = min(start + 3, len(values))
+            elif mode == 2:
+                end = min(start + 5, len(values))
+            else:
+                # An invalid extended-color mode has no reliable command
+                # boundary. Keep the remainder together rather than treating
+                # a color operand as an independent SGR command.
+                end = len(values)
+        else:
+            end = start + 1
+        yield values[start:end]
+        start = end
+
+
+def has_sgr_parameters(data, expected):
+    return any(
+        command == expected
+        for match in SGR_RE.finditer(data)
+        for command in sgr_commands(match.group(1))
+    )
+
+
+def assert_sgr_parser():
+    combined = b"\x1b[1;31;48;2;31;0;0;38;5;196;48;5;236m"
+    assert has_sgr_parameters(combined, (31,))
+    assert has_sgr_parameters(combined, (38, 5, 196))
+    assert has_sgr_parameters(combined, (48, 5, 236))
+    assert not has_sgr_parameters(b"\x1b[38;5;31m", (31,))
+    assert not has_sgr_parameters(b"\x1b[48;2;31;0;0m", (31,))
+
+
+assert_sgr_parser()
+
 
 def fallback_socket_path():
     base = os.environ.get("XDG_RUNTIME_DIR") or os.environ.get("TMPDIR") or "/tmp"
@@ -95,6 +139,62 @@ def tree():
 
 def active_screen(ws):
     return next(s for s in ws["screens"] if s["active"])
+
+def wait_for_active_screen(predicate, seconds=15):
+    deadline = time.time() + seconds
+    last = None
+    while time.time() < deadline:
+        drain(0.2)
+        last = active_screen(tree()[0])
+        if predicate(last):
+            # The model can advance before the next frame refreshes pointer hits.
+            drain(0.2)
+            return last
+    raise AssertionError(last)
+
+def send_input_until_active_screen(data, predicate, seconds=15, retry_interval=1):
+    deadline = time.time() + seconds
+    next_send = 0
+    last = None
+    while time.time() < deadline:
+        now = time.time()
+        if now >= next_send:
+            os.write(fd, data)
+            next_send = now + retry_interval
+        drain(0.2)
+        last = active_screen(tree()[0])
+        if predicate(last):
+            # Keep the next pointer gesture behind the refreshed hit map.
+            drain(0.2)
+            return last
+    raise AssertionError(last)
+
+def wait_for_workspaces(predicate, seconds=15):
+    deadline = time.time() + seconds
+    last = None
+    while time.time() < deadline:
+        drain(0.2)
+        last = tree()
+        if predicate(last):
+            return last
+    raise AssertionError(last)
+
+def send_input_until_workspaces(data, predicate, seconds=15, retry_interval=1):
+    deadline = time.time() + seconds
+    next_send = 0
+    last = None
+    while time.time() < deadline:
+        now = time.time()
+        if now >= next_send:
+            os.write(fd, data)
+            next_send = now + retry_interval
+        drain(0.2)
+        last = tree()
+        if predicate(last):
+            # Keep the next sidebar gesture behind the refreshed hit map.
+            drain(0.2)
+            return last
+    raise AssertionError(last)
 
 def send_prefix_t_until_tab_count(count):
     last = None
@@ -233,6 +333,34 @@ def wait_render_excludes(needle, seconds=15, stable_seconds=0.5):
             return last
     raise AssertionError(last[-1200:])
 
+
+def control_string_end(data, start, allow_bel):
+    """Return the byte after an OSC/DCS-style control string, if complete."""
+    ends = []
+    if allow_bel:
+        bel = data.find(b"\x07", start)
+        if bel >= 0:
+            ends.append((bel, bel + 1))
+    st = data.find(b"\x1b\\", start)
+    if st >= 0:
+        ends.append((st, st + 2))
+    if not ends:
+        return None
+    return min(ends, key=lambda entry: entry[0])[1]
+
+
+def non_csi_escape_end(data, start):
+    """Skip one complete non-CSI escape sequence used by terminal output."""
+    if start + 1 >= len(data):
+        return None
+    kind = data[start + 1]
+    if kind == ord("]"):
+        return control_string_end(data, start + 2, allow_bel=True)
+    if kind in (ord("P"), ord("X"), ord("^"), ord("_")):
+        return control_string_end(data, start + 2, allow_bel=False)
+    return start + 2
+
+
 def render_style_snapshot(data, rows=30, cols=100):
     grid = [[{"bg": None, "bold": False, "dim": False, "reverse": False} for _ in range(cols)] for _ in range(rows)]
     x = y = 0
@@ -285,6 +413,12 @@ def render_style_snapshot(data, rows=30, cols=100):
                         k += 2
                     k += 1
             i = j + 1
+            continue
+        if b == 0x1b:
+            end = non_csi_escape_end(data, i)
+            if end is None:
+                break
+            i = end
             continue
         if b == 0x0d:
             x = 0
@@ -342,6 +476,12 @@ def render_text_snapshot(data, rows=30, cols=100):
                         chars[yy][xx] = " "
             i = j + 1
             continue
+        if b == 0x1b:
+            end = non_csi_escape_end(data, i)
+            if end is None:
+                break
+            i = end
+            continue
         if b == 0x0d:
             x = 0
             i += 1
@@ -366,6 +506,22 @@ def render_text_snapshot(data, rows=30, cols=100):
         i += step
     return "\n".join("".join(row) for row in chars)
 
+
+def assert_snapshot_parser_controls():
+    data = (
+        b"\x1b[30;1H screens  0  1  + "
+        b"\x1b]112\x07"
+        b"\x1bPignored payload\x1b\\"
+        b"\x1b[30;20Hok"
+    )
+    line = render_text_snapshot(data).splitlines()[-1]
+    assert line.startswith(" screens  0  1  +  ok"), line
+    styles = render_style_snapshot(b"\x1b[48;5;12mA\x1b]112\x07B")
+    assert styles[0][0]["bg"] == 12 and styles[0][1]["bg"] == 12, styles[0][:2]
+
+
+assert_snapshot_parser_controls()
+
 deadline = time.time() + 15
 while not os.path.exists(SOCK) and time.time() < deadline:
     drain(0.2)
@@ -375,10 +531,11 @@ assert probe_answers[10] > 0 and probe_answers[11] > 0, probe_answers
 
 ident = rpc({"id": 1, "cmd": "identify"})
 assert ident["ok"] and ident["data"]["app"] == "cmux-tui", ident
-assert ident["data"]["protocol"] == 7, ident
+assert ident["data"]["protocol"] == 10, ident
 print("identify ok:", ident["data"])
 
 ws0 = tree()[0]
+assert ws0["name"] == "0", ws0
 screen0 = active_screen(ws0)
 panes = screen0["panes"]
 assert len(panes) == 1, ws0
@@ -397,7 +554,7 @@ print("initial surface spawned at final size ok")
 # numbered tab and the + button in the top border.
 drain(0.5)
 text = output.decode("utf-8", "replace")
-assert " 1 " in text, text[-500:]
+assert " 0 " in text, text[-500:]
 assert " + " in text, text[-500:]
 print("always-on tab bar with numbered tab ok")
 
@@ -450,9 +607,8 @@ text = render_text_snapshot(output)
 assert "example.com" in text, text[-800:]
 os.write(fd, b"\x1b")
 drain(0.5)
-# Close the browser TAB. prefix-X since the tmux-alignment flip: x kills the
-# pane (which here is the only pane and would end the session), X the tab.
-os.write(fd, b"\x02X")
+# Close the browser tab without closing its containing pane.
+os.write(fd, b"\x02x")
 drain(0.8)
 screen0 = active_screen(tree()[0])
 assert len(screen0["panes"][0]["tabs"]) == before_tabs, screen0
@@ -476,10 +632,12 @@ os.write(
 )
 wait_screen_contains(surface_id, "CF1CF2CF3CF4")
 color_output = output[color_output_start:]
-assert re.search(rb"\x1b\[[0-9;]*(31|38;5;1)(;[0-9]*)?m", color_output), color_output[-2000:]
-assert b"38;5;196" in color_output, color_output[-2000:]
-assert b"48;5;236" in color_output, color_output[-2000:]
-assert b"204;102;102" not in color_output, color_output[-2000:]
+assert has_sgr_parameters(color_output, (31,)) or has_sgr_parameters(
+    color_output, (38, 5, 1)
+), color_output[-2000:]
+assert has_sgr_parameters(color_output, (38, 5, 196)), color_output[-2000:]
+assert has_sgr_parameters(color_output, (48, 5, 236)), color_output[-2000:]
+assert not has_sgr_parameters(color_output, (38, 2, 204, 102, 102)), color_output[-2000:]
 print("indexed color passthrough ok")
 
 inner_osc_query = """python3 - <<'PY'
@@ -580,45 +738,68 @@ print("alt-n smart split ok")
 
 left_pane = panes[0]
 right_pane = panes[1]
+left_pane_id = left_pane["id"]
+right_pane_id = right_pane["id"]
 tab_order = [t["surface"] for t in left_pane["tabs"]]
-os.write(fd, b"\x1b[<0;41;1M\x1b[<32;24;1M\x1b[<0;24;1m")
-drain(1.0)
-screen0 = active_screen(tree()[0])
+expected_reordered = [tab_order[2], tab_order[0], tab_order[1]]
+def tab_reordered_within_left_pane(screen):
+    panes = {p["id"]: p for p in screen["panes"]}
+    return [t["surface"] for t in panes[left_pane_id]["tabs"]] == expected_reordered
+screen0 = send_input_until_active_screen(
+    b"\x1b[<0;41;1M\x1b[<32;24;1M\x1b[<0;24;1m",
+    tab_reordered_within_left_pane,
+)
 panes_by_id = {p["id"]: p for p in screen0["panes"]}
-left_pane = panes_by_id[left_pane["id"]]
-right_pane = panes_by_id[right_pane["id"]]
+left_pane = panes_by_id[left_pane_id]
+right_pane = panes_by_id[right_pane_id]
 reordered = [t["surface"] for t in left_pane["tabs"]]
-assert reordered == [tab_order[2], tab_order[0], tab_order[1]], (tab_order, reordered, screen0)
+assert reordered == expected_reordered, (tab_order, reordered, screen0)
 print("tab drag reorder within pane ok")
 
-os.write(fd, b"\x1b[<0;24;1M\x1b[<32;42;1M\x1b[<0;42;1m")
-drain(1.0)
-screen0 = active_screen(tree()[0])
+def tab_moved_past_last_chip(screen):
+    panes = {p["id"]: p for p in screen["panes"]}
+    return [t["surface"] for t in panes[left_pane_id]["tabs"]] == tab_order
+screen0 = send_input_until_active_screen(
+    b"\x1b[<0;24;1M\x1b[<32;42;1M\x1b[<0;42;1m",
+    tab_moved_past_last_chip,
+)
 panes_by_id = {p["id"]: p for p in screen0["panes"]}
-left_pane = panes_by_id[left_pane["id"]]
+left_pane = panes_by_id[left_pane_id]
 end_reordered = [t["surface"] for t in left_pane["tabs"]]
 assert end_reordered == [tab_order[0], tab_order[1], tab_order[2]], (tab_order, end_reordered, screen0)
 print("tab drag past last chip inserts at end ok")
 
 moving_surface = left_pane["tabs"][0]["surface"]
-os.write(fd, b"\x1b[<0;27;1M\x1b[<32;63;1M\x1b[<0;63;1m")
-drain(1.0)
-screen0 = active_screen(tree()[0])
+def tab_crossed_panes(screen):
+    panes = {p["id"]: p for p in screen["panes"]}
+    return (
+        moving_surface not in [t["surface"] for t in panes[left_pane_id]["tabs"]]
+        and moving_surface in [t["surface"] for t in panes[right_pane_id]["tabs"]]
+    )
+screen0 = send_input_until_active_screen(
+    b"\x1b[<0;27;1M\x1b[<32;63;1M\x1b[<0;63;1m",
+    tab_crossed_panes,
+)
 panes_by_id = {p["id"]: p for p in screen0["panes"]}
-assert moving_surface not in [t["surface"] for t in panes_by_id[left_pane["id"]]["tabs"]], screen0
-assert moving_surface in [t["surface"] for t in panes_by_id[right_pane["id"]]["tabs"]], screen0
+assert moving_surface not in [t["surface"] for t in panes_by_id[left_pane_id]["tabs"]], screen0
+assert moving_surface in [t["surface"] for t in panes_by_id[right_pane_id]["tabs"]], screen0
 print("tab drag to another pane ok")
 
-left_pane = panes_by_id[left_pane["id"]]
-right_pane = panes_by_id[right_pane["id"]]
+left_pane = panes_by_id[left_pane_id]
+right_pane = panes_by_id[right_pane_id]
 content_surface = left_pane["tabs"][0]["surface"]
 right_before = [t["surface"] for t in right_pane["tabs"]]
-os.write(fd, b"\x1b[<0;27;1M\x1b[<32;82;8M\x1b[<0;82;8m")
-drain(1.0)
-screen0 = active_screen(tree()[0])
+expected_right = right_before + [content_surface]
+def tab_appended_to_pane_content(screen):
+    panes = {p["id"]: p for p in screen["panes"]}
+    return [t["surface"] for t in panes[right_pane_id]["tabs"]] == expected_right
+screen0 = send_input_until_active_screen(
+    b"\x1b[<0;27;1M\x1b[<32;82;8M\x1b[<0;82;8m",
+    tab_appended_to_pane_content,
+)
 panes_by_id = {p["id"]: p for p in screen0["panes"]}
-right_after = [t["surface"] for t in panes_by_id[right_pane["id"]]["tabs"]]
-assert right_after == right_before + [content_surface], (right_before, right_after, screen0)
+right_after = [t["surface"] for t in panes_by_id[right_pane_id]["tabs"]]
+assert right_after == expected_right, (right_before, right_after, screen0)
 print("tab drag to pane content appends ok")
 
 # Split via socket while TUI is attached.
@@ -636,11 +817,13 @@ ws0 = tree()[0]
 assert len(ws0["screens"]) == 2, ws0
 assert ws0["screens"][1]["active"], ws0
 assert len(ws0["screens"][1]["panes"]) == 1, ws0
+status_line = render_text_snapshot(output).splitlines()[-1]
+assert " screens  0  1  + " in status_line, status_line
 print("prefix-c new screen ok")
 
-# The status bar shows both screens; click screen 1's entry to switch
+# The status bar shows both screens; click screen 0's entry to switch
 # back. Status bar row is the last row (30). The bar starts after the
-# sidebar (col 23 SGR) with " screens " (9 cols), so entry 1 starts at
+# sidebar (col 23 SGR) with " screens " (9 cols), so entry 0 starts at
 # col 32.
 os.write(fd, b"\x1b[<0;33;30M\x1b[<0;33;30m")
 drain(1.0)
@@ -678,26 +861,34 @@ print("sidebar rendered ok")
 
 # Prefix-W: create a second workspace; it becomes active.
 os.write(fd, b"\x02W")
-drain(1.0)
-workspaces = tree()
+workspaces = wait_for_workspaces(
+    lambda current: len(current) == 2
+    and current[1]["active"]
+    and current[1]["name"] == "1"
+)
 assert len(workspaces) == 2, workspaces
 assert workspaces[1]["active"], workspaces
+assert workspaces[1]["name"] == "1", workspaces
 print("prefix-W new workspace ok")
 
 # Drag the original workspace below the new one. Layout: row 0 header,
 # row 1 blank, rows 2-3 workspace 1, row 4 blank, rows 5-6 workspace 2
 # (SGR mouse coordinates are 1-based).
 original_ws = ws_id
-os.write(fd, b"\x1b[<0;2;3M\x1b[<32;2;7M\x1b[<0;2;7m")
-drain(1.0)
-workspaces = tree()
+workspaces = send_input_until_workspaces(
+    b"\x1b[<0;2;3M\x1b[<32;2;7M\x1b[<0;2;7m",
+    lambda current: len(current) == 2 and current[-1]["id"] == original_ws
+)
 assert [w["id"] for w in workspaces] == [w["id"] for w in workspaces if w["id"] != original_ws] + [original_ws], workspaces
 print("sidebar workspace drag reorder ok")
 
 # Click the moved original workspace's sidebar entry.
-os.write(fd, b"\x1b[<0;2;6M\x1b[<0;2;6m")
-drain(1.0)
-workspaces = tree()
+workspaces = send_input_until_workspaces(
+    b"\x1b[<0;2;6M\x1b[<0;2;6m",
+    lambda current: len(current) > 1
+    and current[1]["active"]
+    and current[1]["id"] == original_ws
+)
 assert workspaces[1]["active"] and workspaces[1]["id"] == original_ws, workspaces
 print("sidebar click switches workspace ok")
 
@@ -733,20 +924,21 @@ assert "┌" in text, text[-800:]
 assert "├" in text, text[-800:]
 assert "[ OK ⏎ ]" not in text, text[-800:]
 menu_lines = render_text_snapshot(output).splitlines()
-assert "Rename tab" in menu_lines[5], menu_lines[4:18]
-assert "Close tab" in menu_lines[6], menu_lines[4:18]
-assert "├" in menu_lines[7], menu_lines[4:18]
-assert "New tab" in menu_lines[8], menu_lines[4:18]
-assert "New browser tab" in menu_lines[9], menu_lines[4:18]
-assert "├" in menu_lines[10], menu_lines[4:18]
-assert "Split right" in menu_lines[11], menu_lines[4:18]
-assert "Split down" in menu_lines[12], menu_lines[4:18]
-assert "Close pane" in menu_lines[13], menu_lines[4:18]
-assert "├" in menu_lines[14], menu_lines[4:18]
-assert "Copy tab id" in menu_lines[15], menu_lines[4:18]
-assert "Copy pane id" in menu_lines[16], menu_lines[4:18]
+assert "Rename tab" in menu_lines[5], menu_lines[4:19]
+assert "Close tab" in menu_lines[6], menu_lines[4:19]
+assert "├" in menu_lines[7], menu_lines[4:19]
+assert "New pane" in menu_lines[8], menu_lines[4:19]
+assert "New tab" in menu_lines[9], menu_lines[4:19]
+assert "New browser tab" in menu_lines[10], menu_lines[4:19]
+assert "├" in menu_lines[11], menu_lines[4:19]
+assert "Split right" in menu_lines[12], menu_lines[4:19]
+assert "Split down" in menu_lines[13], menu_lines[4:19]
+assert "Close pane" in menu_lines[14], menu_lines[4:19]
+assert "├" in menu_lines[15], menu_lines[4:19]
+assert "Copy tab id" in menu_lines[16], menu_lines[4:19]
+assert "Copy pane id" in menu_lines[17], menu_lines[4:19]
 output = b""
-os.write(fd, b"\x1b[<34;81;16M\x1b[<2;81;16m")
+os.write(fd, b"\x1b[<34;81;17M\x1b[<2;81;17m")
 drain(0.8)
 osc52 = re.findall(rb"\x1b\]52;c;([A-Za-z0-9+/=]+)", output)
 assert osc52, "no OSC 52 clipboard write after menu copy"
@@ -765,7 +957,7 @@ tabs_before = sum(
     for s in w["screens"]
     for p in s["panes"]
 )
-os.write(fd, b"\x1b[<2;81;6M\x1b[<34;81;9M\x1b[<2;81;9m")
+os.write(fd, b"\x1b[<2;81;6M\x1b[<34;81;10M\x1b[<2;81;10m")
 drain(1.0)
 tabs_after = sum(
     len(p["tabs"])

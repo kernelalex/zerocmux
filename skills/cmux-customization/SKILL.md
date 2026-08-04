@@ -7,7 +7,7 @@ description: "Customize zerocmux for an end user. Use when changing cmux.json ac
 
 Use this skill for user-facing zerocmux customization. Keep the user's config intact, prefer schema-backed edits, and validate before reporting completion.
 
-## What Can Be Customized
+## Choose the right surface
 
 - Custom actions: define reusable `actions` in `cmux.json`. Actions can appear in Cmd+Shift+P, surface tab bars, shortcuts, and the plus-button right-click menu.
 - New workspace button: set `ui.newWorkspace.action` to replace the normal plus-button click, and `ui.newWorkspace.contextMenu` to control right-click actions. `ui.newWorkspace.rightClick` is accepted as an alias, but new examples should use `contextMenu`.
@@ -21,7 +21,7 @@ Use this skill for user-facing zerocmux customization. Keep the user's config in
 - Import, export, and reset: back up the current config, apply the smallest diff, validate it, and keep a rollback path for user-owned customizations.
 - Terminal behavior: use Ghostty config for fonts, themes, cursor style, copy-on-select, shell integration, terminal keybindings, and terminal rendering.
 
-## Choose the Right Surface
+Project-local `.cmux/cmux.json` and `.cmux/dock.json` let worktree, SSH, review, dev, CI, and docs patterns travel with the repo; project actions and commands override global entries with the same ID or name. Global app preferences do not belong there.
 
 - zerocmux app preferences: use `zerocmux-settings` for global `~/.config/cmux/cmux.json` settings such as appearance, sidebar, notifications, browser behavior, automation, and shortcuts.
 - Custom actions, workspace layouts, tab bar buttons, plus-button behavior, and Command Palette entries: edit `~/.config/cmux/cmux.json` globally or `.cmux/cmux.json` in the project. Project-local actions and commands override global entries with the same ID or name.
@@ -40,15 +40,15 @@ templates, starter configs, or a known workflow shape.
 
 ## Workflow
 
-1. Inspect existing config before editing.
+1. Inspect existing config.
 
    ```bash
    test -f ~/.config/cmux/cmux.json && sed -n '1,220p' ~/.config/cmux/cmux.json
    test -f .cmux/cmux.json && sed -n '1,220p' .cmux/cmux.json
    ```
 
-2. Pick global or project-local scope. Ask only when the choice changes behavior meaningfully. Default to project-local for repo-specific commands and global for app preferences.
-3. Before editing, back up the target file when it already exists:
+2. Pick global or project-local scope. Default to project-local for repo-specific commands, global for app preferences. Ask only when the choice changes behavior meaningfully.
+3. Back up the target file when it already exists (applicable path only, no backup for a missing file).
 
    ```bash
    stamp="$(date +%Y%m%d-%H%M%S)"
@@ -73,11 +73,7 @@ templates, starter configs, or a known workflow shape.
    zerocmux reload-config
    ```
 
-7. Verify the configured entrypoint exists. For shortcuts, read back the binding. For custom actions, confirm the action ID and where it should appear.
-
-## Common Patterns
-
-Add a Command Palette action that opens Codex in a new tab. It will appear in Cmd+Shift+P unless `palette` is false:
+Appears in Cmd+Shift+P unless `palette` is false.
 
 ```json
 {

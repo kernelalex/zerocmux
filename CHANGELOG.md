@@ -2,7 +2,32 @@
 
 All notable changes to zerocmux are documented here.
 
-## [1.2.2] - 2026-07-17
+## [Unreleased]
+
+### Changed
+- Synced with upstream cmux through manaflow-ai/cmux@afe629534f (1,910
+  commits), merged under the zero-telemetry policy: no analytics, no crash
+  reporting, and no automatic network traffic beyond Sparkle update checks
+  against zerocmux's own GitHub releases and the user-configured CmuxGit
+  GitHub probe
+- Adopted from upstream: local iOS-simulator panes (CmuxSimulator, driven
+  by `xcrun simctl` — no network), Browser Design Mode, desktop
+  notification permission settings, a Mosh terminal transport and SSH
+  reauthentication retry flow, the native SSH connection broker, the
+  unified one-shot resume launcher, and the cmux-tui renderer fixes that
+  unblock the detach/reattach smoke
+- Feature flags are now local-only: upstream's PostHog-backed remote flag
+  control plane was removed; flags resolve from local overrides and
+  per-flag defaults, and excluded surfaces (Pro, mobile pairing, hosted
+  accounts, Cloud VM) are pinned off
+- Excluded from upstream: Sentry crash/telemetry reporting on macOS (the
+  SDK, its startup wiring, and the transport-diagnostics bridge), PostHog
+  analytics, the rebuilt Stack Auth sign-in stack, iroh connectivity v2 on
+  the Mac host, the iOS mobile-host surface (pairing, phone push
+  forwarding, browser streaming, workspace-changes sync), the
+  prewarmed-pricing-page browser pool, and the cmux-browser import scaffold
+- Browser JS dialogs and authentication prompts present directly again
+  instead of routing through the mobile dialog mirroring broker
 
 ### Changed
 - Synced with upstream cmux through manaflow-ai/cmux@a5a70ff906 (1,140

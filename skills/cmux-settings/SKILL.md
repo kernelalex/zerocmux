@@ -37,15 +37,15 @@ Subcommands:
 | `zerocmux-settings validate` | Parse the file and flag any unknown settings keys. |
 | `zerocmux-settings open` | Open `cmux.json` in `$EDITOR`, VS Code, Cursor, or TextEdit. |
 
-`--file <path>` overrides the target file (useful for `--file ~/.config/cmux/settings.json` when the user keeps things in the legacy file).
+`--file <path>` overrides the target file, useful for `--file ~/.config/cmux/settings.json`.
 
 ## Workflow
 
-1. Confirm the change. If the user named a setting in plain English (e.g. "make the sidebar tint match the terminal background"), look it up first.
+1. Look up the key when the user named a setting in plain English:
    ```bash
    zerocmux-settings list-supported | rg -i 'sidebar.*terminal|terminal.*sidebar'
    ```
-2. Set the value. JSON literals (`true`, `false`, numbers, arrays, objects) must be valid JSON. Plain words are stored as strings.
+2. Set it. JSON literals must be valid JSON.
    ```bash
    zerocmux-settings set sidebarAppearance.matchTerminalBackground true
    zerocmux-settings set app.appearance dark
@@ -62,13 +62,13 @@ Subcommands:
 
 ## Quick reference
 
-- Appearance: `app.appearance` = `"system" | "light" | "dark"`, `app.appIcon`, `app.menuBarOnly`, `app.minimalMode`.
-- Sidebar tint: `sidebarAppearance.matchTerminalBackground`, `sidebarAppearance.tintColor`, `sidebarAppearance.tintOpacity` (0..1).
-- Sidebar details: `sidebar.hideAllDetails`, `sidebar.showBranchDirectory`, `sidebar.showPullRequests`, `sidebar.showPorts`, `sidebar.showLog`.
-- Notifications: `notifications.dockBadge`, `notifications.sound` (enum incl. `"none"`, `"custom_file"`), `notifications.customSoundFilePath`, `notifications.hooks` (array).
-- Browser: `browser.defaultSearchEngine`, `browser.theme`, `browser.openTerminalLinksInCmuxBrowser`, `browser.hostsToOpenInEmbeddedBrowser`.
-- Automation: `automation.socketControlMode` (`off | cmuxOnly | automation | password | allowAll`), `automation.portBase`, `automation.portRange`.
-- Shortcuts: `shortcuts.bindings.<actionId>` = `"cmd+b"`, `["ctrl+b","c"]`, `null`, or `""` to unbind. See `references/shortcut-actions.md`.
+- Appearance: `app.appearance` (`"system" | "light" | "dark"`), `app.appIcon`, `app.menuBarOnly`, `app.minimalMode`.
+- Sidebar tint: `sidebarAppearance.matchTerminalBackground`, `.tintColor`, `.tintOpacity` (0..1).
+- Sidebar details: `sidebar.hideAllDetails`, `.showBranchDirectory`, `.showPullRequests`, `.showPorts`, `.showLog`.
+- Notifications: `notifications.dockBadge`, `.sound` (enum including `"none"`, `"custom_file"`), `.customSoundFilePath`, `.hooks` (array).
+- Browser: `browser.defaultSearchEngine`, `.theme`, `.openTerminalLinksInCmuxBrowser`, `.hostsToOpenInEmbeddedBrowser`.
+- Automation: `automation.socketControlMode` (`off | cmuxOnly | automation | password | allowAll`), `.portBase`, `.portRange`.
+- Shortcuts: `shortcuts.bindings.<actionId>` = `"cmd+b"`, `["ctrl+b","c"]`, `null`, or `""` to unbind. Action ids in [references/shortcut-actions.md](references/shortcut-actions.md).
 
 For the full list of settings, defaults, and descriptions, run `zerocmux-settings list-supported` or read [references/all-keys.md](references/all-keys.md).
 

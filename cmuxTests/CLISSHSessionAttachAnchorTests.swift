@@ -361,7 +361,8 @@ struct CLISSHSessionAttachAnchorTests {
             exitSignal.signal()
         }
 
-        let timedOut = exitSignal.wait(timeout: .now() + timeout) == .timedOut
+        let deadlineExpired = exitSignal.wait(timeout: .now() + timeout) == .timedOut
+        let timedOut = deadlineExpired && process.isRunning
         if timedOut {
             process.terminate()
             if exitSignal.wait(timeout: .now() + 1) == .timedOut {

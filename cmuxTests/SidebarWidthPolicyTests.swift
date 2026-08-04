@@ -2,6 +2,7 @@ import AppKit
 import CmuxAppKitSupportUI
 import CmuxFoundation
 import SwiftUI
+import Testing
 import XCTest
 
 #if canImport(cmux_DEV)
@@ -275,6 +276,11 @@ final class SidebarWidthPolicyTests: XCTestCase {
         XCTAssertFalse(range.contains(675.9))
         XCTAssertFalse(range.contains(686.1))
     }
+}
+
+@MainActor
+@Suite("App web theme contrast")
+struct AppWebThemeContrastTests {
 }
 
 final class SidebarWorkspaceSelectionColorTests: XCTestCase {

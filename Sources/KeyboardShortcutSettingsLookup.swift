@@ -11,21 +11,66 @@ extension KeyboardShortcutSettings {
         }
         #endif
 
-        if let data = UserDefaults.standard.data(forKey: action.defaultsKey),
-           let shortcut = try? JSONDecoder().decode(StoredShortcut.self, from: data) {
-            return shortcut.isUnbound ? nil : shortcut
+        let managedBySettingsFile = settingsFileStore.isManagedByFile(action)
+        let configuredShortcut = explicitlyConfiguredShortcut(for: action)
+        let resolvedShortcut = effectivePersistedShortcut(
+            configuredShortcut,
+            for: action,
+            managedBySettingsFile: managedBySettingsFile
+        )
+
+        if action == .reopenClosedBrowserPanel,
+           resolvedShortcut == action.defaultShortcut,
+           configuredShortcut != resolvedShortcut {
+            return defaultShortcutResolvingLegacyConflicts(
+                for: action,
+                explicitlyConfiguredShortcut: explicitlyConfiguredShortcut(for:)
+            )
         }
 
-        if let managedShortcut = settingsFileStore.override(for: action) {
-            return managedShortcut.isUnbound ? nil : managedShortcut
-        }
+        return resolvedShortcut
+    }
 
-        let defaultShortcut = action.defaultShortcut
-        return defaultShortcut.isUnbound ? nil : defaultShortcut
+    static func defaultShortcutResolvingLegacyConflicts(
+        for action: Action,
+        explicitlyConfiguredShortcut: (Action) -> StoredShortcut?
+    ) -> StoredShortcut? {
+        guard let settingsAction = CmuxSettings.ShortcutAction(rawValue: action.rawValue) else {
+            return action.defaultShortcut.isUnbound ? nil : action.defaultShortcut
+        }
+        return settingsAction.effectivePersistedShortcutResolvingLegacyConflicts(
+            nil,
+            explicitlyConfiguredShortcut: { settingsConfiguredAction in
+                guard let configuredAction = Action(rawValue: settingsConfiguredAction.rawValue) else {
+                    return nil
+                }
+                return explicitlyConfiguredShortcut(configuredAction)?.cmuxSettingsStoredShortcut
+            },
+            bindingsConflict: { proposed, settingsConfiguredAction, configured in
+                guard let configuredAction = Action(rawValue: settingsConfiguredAction.rawValue) else {
+                    return false
+                }
+                return configuredAction.conflicts(
+                    with: StoredShortcut(cmuxSettingsStoredShortcut: proposed),
+                    proposedAction: action,
+                    configuredShortcut: StoredShortcut(cmuxSettingsStoredShortcut: configured)
+                )
+            }
+        ).map(StoredShortcut.init(cmuxSettingsStoredShortcut:))
     }
 
     static func shortcut(for action: Action) -> StoredShortcut {
         shortcutIfBound(for: action) ?? .unbound
+    }
+
+    private static func explicitlyConfiguredShortcut(for action: Action) -> StoredShortcut? {
+        if settingsFileStore.isManagedByFile(action) {
+            return settingsFileStore.override(for: action)
+        }
+        guard let data = UserDefaults.standard.data(forKey: action.defaultsKey) else {
+            return nil
+        }
+        return try? JSONDecoder().decode(StoredShortcut.self, from: data)
     }
 
     static func menuShortcut(for action: Action) -> StoredShortcut {
@@ -59,6 +104,14 @@ extension KeyboardShortcutSettings {
 
     static func isManagedBySettingsFile(_ action: Action) -> Bool {
         settingsFileStore.isManagedByFile(action)
+    }
+
+    /// Whether the user persisted a binding for `action`, either in cmux.json
+    /// or the legacy UserDefaults store. Used to preserve the precedence of an
+    /// existing binding when a newly introduced default reuses its keystroke.
+    static func hasExplicitShortcutOverride(for action: Action) -> Bool {
+        settingsFileStore.override(for: action) != nil
+            || UserDefaults.standard.object(forKey: action.defaultsKey) != nil
     }
 
     /// The effective focus predicate gating `action`: the `shortcuts.when`
@@ -106,5 +159,19 @@ extension KeyboardShortcutSettings {
         guard isManagedBySettingsFile(action) else { return nil }
         return String(localized: "settings.shortcuts.managedByFile", defaultValue: "Managed in zerocmux.json")
     }
+}
 
+extension KeyboardShortcutSettings.Action {
+    func tooltip(_ base: String) -> String {
+        "\(base) (\(displayedShortcutString(for: KeyboardShortcutSettings.shortcut(for: self))))"
+    }
+
+    var usesNumberedDigitMatching: Bool {
+        switch self {
+        case .selectSurfaceByNumber, .selectWorkspaceByNumber:
+            return true
+        default:
+            return false
+        }
+    }
 }

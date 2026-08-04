@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   changes:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: runs-on=${{ github.run_id }}-changes/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 5
     outputs:
       macos: ${{ steps.detect.outputs.macos }}
@@ -84,7 +84,7 @@ jobs:
             --head-sha "$HEAD_SHA"
 
   workflow-guard-tests:
-    runs-on: blacksmith-6vcpu-macos-15
+    runs-on: tartelet
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -124,6 +124,9 @@ jobs:
         with:
           python-version: "3.9"
 
+      - name: Install workflow guard Python dependencies
+        run: python3 -m pip install --disable-pip-version-check --no-input PyYAML==6.0.3 bashlex==0.18
+
       - name: Validate nightly prune Python compatibility
         run: PYTHON_BIN=python3.9 bash ./tests/test_ci_nightly_prune_python_compat.sh
 
@@ -139,8 +142,14 @@ jobs:
       - name: Validate unit-test SwiftPM retry guard
         run: ./tests/test_ci_unit_test_spm_retry.sh
 
+      - name: Validate Swift Testing suite timeout guard
+        run: python3 tests/test_swift_testing_suite_timeout.py
+
       - name: Validate xcodebuild noninteractive crash prompt guard
         run: python3 tests/test_ci_xcodebuild_noninteractive_helper.py
+
+      - name: Validate XCTest summary tolerance gate
+        run: python3 tests/test_ci_xctest_summary_gate.py
 
       - name: Validate app-host xcodebuild retry guard
         run: ./tests/test_ci_app_host_xcodebuild_retry.sh
@@ -167,6 +176,12 @@ jobs:
 
       - name: Validate Zig install without sudo
         run: ./tests/test_install_zig_ci_no_sudo.sh
+
+      - name: Initialize Ghostty for Zig version guard
+        run: git submodule update --init --depth 1 ghostty
+
+      - name: Validate Ghostty Zig version synchronization
+        run: ./tests/test_ghostty_zig_version_sync.sh
 
       - name: Validate virtual display lock
         run: ./tests/test_ci_virtual_display_lock.sh
@@ -228,6 +243,11 @@ jobs:
       - name: Validate pbxproj test-wiring lint
         run: ./tests/test_ci_pbxproj_test_wiring.sh
 
+      - name: Validate stored DispatchWorkItem ownership
+        run: |
+          python3 tests/test_lint_stored_dispatch_work_items.py
+          python3 scripts/lint-stored-dispatch-work-items.py
+
       - name: Validate pbxproj objectVersion pin and normalization
         run: ./scripts/check-pbxproj.sh
 
@@ -252,7 +272,7 @@ jobs:
   remote-daemon-tests:
     needs: changes
     if: ${{ needs.changes.outputs.go == 'true' }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: runs-on=${{ github.run_id }}-remote-daemon-tests/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -275,7 +295,7 @@ jobs:
   react-apps-check:
     needs: changes
     if: ${{ needs.changes.outputs.web == 'true' }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: runs-on=${{ github.run_id }}-react-apps-check/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -309,7 +329,7 @@ jobs:
     needs: changes
     # Generated protocol and streaming benchmarks also cover webview-only diffs.
     if: ${{ needs.changes.outputs.macos == 'true' || needs.changes.outputs.web == 'true' }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: runs-on=${{ github.run_id }}-diff-sidecar-check/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -354,18 +374,16 @@ jobs:
     # linux-preflight itself succeeds. Require the direct needs explicitly.
     if: ${{ !cancelled() && needs.changes.result == 'success' && needs.linux-preflight.result == 'success' && needs.changes.outputs.macos == 'true' }}
     name: app-host unit tests (${{ matrix.shard }}/4)
-    # App-host XCTest needs a runner that can broker testmanagerd control
-    # sessions. Validated head-to-head that blacksmith-6vcpu-macos-15 runs the
-    # full app-host suite with 0 unexpected failures, identical to warp-15, so
-    # route through the shared MACOS_RUNNER_15 var like the other macOS jobs.
-    runs-on: blacksmith-6vcpu-macos-15
+    # App-host XCTest needs a clean, ephemeral Tart VM with an Aqua session
+    # that can broker testmanagerd control sessions.
+    runs-on: tartelet
     timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix:
         shard: [1, 2, 3, 4]
     env:
-      CMUX_CI_XCODE_APP: ${{ vars.CMUX_CI_XCODE_APP_MACOS_15 }}
+      CMUX_CI_XCODE_APP: ${{ vars.CMUX_CI_XCODE_APP_MACOS_26 }}
       CMUX_CI_REQUIRED_MACOS_SDK_MAJOR: "26"
       CMUX_SKIP_ZIG_BUILD: "1"
       # Keep one-off focused gates on the lightest measured shard so shard 1 no
@@ -409,7 +427,7 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: GhosttyKit.xcframework
-          key: ghosttykit-${{ steps.ghostty-revision.outputs.sha }}
+          key: ghosttykit-sentry-off-v1-${{ steps.ghostty-revision.outputs.sha }}
 
       - name: Download pre-built GhosttyKit.xcframework
         if: steps.cache-ghosttykit.outputs.cache-hit != 'true'
@@ -484,17 +502,32 @@ jobs:
           xcrun xctest "$DERIVED_DATA_PATH/Build/Products/Debug/CmuxTerminalCoreTests.xctest"
 
       - name: Enable XCTest automation mode
+        run: scripts/ci/enable-xctest-automation-mode.sh
+
+      - name: Run agent chat transcript lifecycle regressions
+        if: ${{ matrix.shard == fromJSON(env.CMUX_APP_HOST_FOCUSED_REGRESSION_SHARD) }}
         run: |
+          # Swift Testing assertion failures are tolerated in the full sharded
+          # app-host suite. Keep hook-driven transcript resolution on a
+          # non-tolerant focused invocation so Feed ingress cannot regain an
+          # unbounded recursive filesystem scan.
           set -euo pipefail
-          if ! command -v automationmodetool >/dev/null 2>&1; then
-            echo "::warning::automationmodetool is unavailable; XCTest will use its default automation-mode setup"
-            exit 0
-          fi
-          if sudo -n true 2>/dev/null; then
-            sudo -n automationmodetool enable-automationmode-without-authentication
-          else
-            echo "::warning::Passwordless sudo unavailable; XCTest will use its default automation-mode setup"
-          fi
+          SOURCE_PACKAGES_DIR="$PWD/.ci-source-packages"
+          for suite in \
+            AgentChatSessionRegistryLifecycleReviewRegressionTests \
+            AgentChatFallbackTranscriptResolutionCoordinatorTests
+          do
+            scripts/ci/run-in-console-session.sh \
+              scripts/ci/run-app-host-xcodebuild.sh \
+              -project cmux.xcodeproj -scheme zerocmux-unit -configuration Debug \
+              -derivedDataPath "$CMUX_DERIVED_DATA_PATH" \
+              -clonedSourcePackagesDirPath "$SOURCE_PACKAGES_DIR" \
+              -disableAutomaticPackageResolution \
+              -destination "platform=macOS" \
+              CMUX_SKIP_ZIG_BUILD=1 \
+              -only-testing:"cmuxTests/$suite" \
+              test
+          done
 
       - name: Run browser runtime viewport regression
         if: ${{ matrix.shard == fromJSON(env.CMUX_APP_HOST_FOCUSED_REGRESSION_SHARD) }}
@@ -516,6 +549,26 @@ jobs:
             -only-testing:cmuxTests/BrowserViewportRuntimeTests \
             test
 
+      - name: Run five-tab renderer memory regression
+        if: ${{ matrix.shard == fromJSON(env.CMUX_APP_HOST_FOCUSED_REGRESSION_SHARD) }}
+        run: |
+          # Use a dedicated app-host process so task_vm_info deltas only compare
+          # one versus five real Ghostty renderers in this workload. The focused
+          # invocation also makes footprint assertion failures non-tolerant.
+          set -euo pipefail
+          SOURCE_PACKAGES_DIR="$PWD/.ci-source-packages"
+          CMUX_RENDERER_MEMORY_REGRESSION=1 \
+            scripts/ci/run-in-console-session.sh \
+            scripts/ci/run-app-host-xcodebuild.sh \
+            -project cmux.xcodeproj -scheme zerocmux-unit -configuration Debug \
+            -derivedDataPath "$CMUX_DERIVED_DATA_PATH" \
+            -clonedSourcePackagesDirPath "$SOURCE_PACKAGES_DIR" \
+            -disableAutomaticPackageResolution \
+            -destination "platform=macOS" \
+            CMUX_SKIP_ZIG_BUILD=1 \
+            -only-testing:cmuxTests/GhosttySurfaceOverlayTests/testFiveTabRendererFootprintReturnsToOneRendererTargetAcrossHideRevealCycles \
+            test
+
       - name: Run notification routing regressions
         if: ${{ matrix.shard == fromJSON(env.CMUX_APP_HOST_FOCUSED_REGRESSION_SHARD) }}
         run: |
@@ -533,11 +586,40 @@ jobs:
             -destination "platform=macOS" \
             CMUX_SKIP_ZIG_BUILD=1 \
             -only-testing:cmuxTests/AgentNotificationRegressionTests \
+            -only-testing:cmuxTests/DockNotificationAttentionTests \
             -only-testing:cmuxTests/ClaudeHookLifecycleCleanupTests \
             -only-testing:cmuxTests/ClaudeHookLiveDeliveryTargetTests \
             -only-testing:cmuxTests/ClaudeHookPIDAuthenticationTests \
             -only-testing:cmuxTests/HostSettingsShortcutNotificationTests \
             test
+
+      - name: Run Pi Feed ownership regressions
+        if: ${{ matrix.shard == fromJSON(env.CMUX_APP_HOST_FOCUSED_REGRESSION_SHARD) }}
+        run: |
+          # Swift Testing assertion failures are tolerated in the full sharded
+          # app-host suite. Keep Feed ingestion and ownership on a non-tolerant
+          # focused invocation so valid Pi Feed targets cannot silently regress.
+          set -euo pipefail
+          SOURCE_PACKAGES_DIR="$PWD/.ci-source-packages"
+          # Each suite mutates process-global app/store state. Give every suite
+          # a fresh app-host process so Swift Testing cannot interleave them.
+          for suite in \
+            FeedCoordinatorTests \
+            FeedCoordinatorIngressTests \
+            PiFeedOwnershipTests \
+            PiFeedDockOwnershipTests
+          do
+            scripts/ci/run-in-console-session.sh \
+              scripts/ci/run-app-host-xcodebuild.sh \
+              -project cmux.xcodeproj -scheme zerocmux-unit -configuration Debug \
+              -derivedDataPath "$CMUX_DERIVED_DATA_PATH" \
+              -clonedSourcePackagesDirPath "$SOURCE_PACKAGES_DIR" \
+              -disableAutomaticPackageResolution \
+              -destination "platform=macOS" \
+              CMUX_SKIP_ZIG_BUILD=1 \
+              -only-testing:"cmuxTests/$suite" \
+              test
+          done
 
       - name: Run remote tmux mirror detach and placement regressions
         if: ${{ matrix.shard == fromJSON(env.CMUX_APP_HOST_FOCUSED_REGRESSION_SHARD) }}
@@ -771,7 +853,10 @@ jobs:
               CMUX_SKIP_ZIG_BUILD=1 \
               test 2>&1 &
             local xcodebuild_pid=$!
-            local timeout_seconds="${CMUX_UNIT_TEST_TIMEOUT_SECONDS:-900}"
+            # The balanced shard plan measures about 17.5 minutes of serial
+            # XCTest work. Leave enough headroom for Tartelet host variation
+            # while retaining a bounded timeout below the 75-minute job limit.
+            local timeout_seconds="${CMUX_UNIT_TEST_TIMEOUT_SECONDS:-1500}"
             local deadline=$((SECONDS + timeout_seconds))
             while kill -0 "$xcodebuild_pid" 2>/dev/null; do
               if [ "$SECONDS" -ge "$deadline" ]; then
@@ -813,13 +898,7 @@ jobs:
           fi
 
           if [ "$EXIT_CODE" -ne 0 ]; then
-            SUMMARY=$(echo "$OUTPUT" | grep "Executed.*tests.*with.*failures" | tail -1)
-            if echo "$SUMMARY" | grep -q "(0 unexpected)"; then
-              echo "All failures are expected, treating as pass"
-            else
-              echo "Unexpected test failures detected"
-              exit 1
-            fi
+            ./scripts/ci/xctest-summary-gate.sh "$TEST_OUTPUT"
           fi
 
       - name: Run bundled Ghostty theme picker helper regression
@@ -855,6 +934,12 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Set up Bun for Pi extension dispatch regression
+        if: ${{ matrix.shard == fromJSON(env.CMUX_APP_HOST_FOCUSED_REGRESSION_SHARD) }}
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1.3.6"
+
       - name: Run CLI no-socket regressions
         if: ${{ matrix.shard == fromJSON(env.CMUX_APP_HOST_FOCUSED_REGRESSION_SHARD) }}
         run: |
@@ -875,14 +960,24 @@ jobs:
           CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_cli_contract_help.py
           CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_cli_layout_focus_contract.py
           CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_cli_socket_operation_deadline.py
+          CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_cli_simulator_contract.py
+          CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_browser_profile_cli.py
           python3 tests/test_stress_cli_socket_api.py
           CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_cli_omo_openagent_plugin_migration.py
           CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_cli_socket_autodiscovery.py
+          python3 tests/test_codex_wrapper_resume_hooks.py
           python3 tests/test_claude_wrapper_hooks.py
           python3 tests/test_claude_wrapper_mutual_shim_loop.py
+          python3 tests/test_claude_wrapper_shim_root_survives_tmpdir_change.py
           python3 tests/test_claude_wrapper_user_binary_resolution.py
+          python3 tests/test_claude_teams_test_utils.py
+          CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_cli_codex_teams_informational.py
           CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_cli_claude_teams_fallback_path.py
           CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_cli_claude_teams_env.py
+          CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_cli_claude_teams_existing_shim.py
+          CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_cli_claude_teams_main_vertical.py
+          CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_cli_claude_teams_moved_surface.py
+          CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_cli_claude_teams_tmux_sequence.py
           CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_cli_claude_teams_trust_optin.py
           CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_cli_omo_fallback_path.py
           CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_cli_omx_fallback_path.py
@@ -890,12 +985,23 @@ jobs:
           python3 tests/test_issue_2448_shell_claude_wrapper_dispatch.py
           python3 tests/test_issue_8093_ghostty_ssh_binary_path.py
           python3 tests/test_issue_6714_zsh_shim_noclobber.py
+          python3 tests/test_issue_8953_zsh_prompt_wrap_guard.py
           python3 tests/test_shell_git_branch_stale_cwd.py
           python3 tests/test_shell_git_config_remote_url_parsing.py
+          if ! command -v fish >/dev/null 2>&1; then
+            HOMEBREW_NO_AUTO_UPDATE=1 brew install fish
+          fi
+          command -v fish >/dev/null 2>&1 || {
+            echo "fish is required for the issue #9075 shell socket regression" >&2
+            exit 1
+          }
+          python3 tests/test_issue_9075_shell_socket_reports.py
           CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_claude_hook_stop_last_assistant.py
           CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_claude_hook_clear_running_status.py
           CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_claude_hook_push_notification.py
           CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_pi_extension_install.py
+          CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_pi_extension_dispatch.py
+          CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_pi_compacted_feed.py
           CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_omp_extension_install.py
           CMUX_CLI_BIN="$CLI_BIN" python3 tests/test_campfire_extension_install.py
 
@@ -913,7 +1019,7 @@ jobs:
       - swift-package-tests
       - agent-session-web-resources
     if: ${{ always() }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: runs-on=${{ github.run_id }}-tests/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 5
     steps:
       - name: Check app-host unit test routing
@@ -974,13 +1080,15 @@ jobs:
     # transitive skip otherwise marks every macOS job skipped even when
     # linux-preflight itself succeeds. Require the direct needs explicitly.
     if: ${{ !cancelled() && needs.changes.result == 'success' && needs.linux-preflight.result == 'success' && needs.changes.outputs.macos == 'true' }}
-    # Build the release helper with SDK 15, then run package tests with SDK 26.
-    runs-on: ${{ vars.MACOS_RUNNER_DUAL_XCODE || 'blacksmith-6vcpu-macos-15' }}
+    # Build the release helper and the package tests with the lane's default
+    # Xcode. The old dual-Xcode SDK-15 helper pin existed for zig 0.15.2's
+    # MachO linker; zig 0.16 links against current SDKs, and the helper's
+    # macOS support floor is asserted via LC_BUILD_VERSION minos below.
+    runs-on: tartelet
     # A hung Remote* suite costs one 5-minute alarm + retry; leave headroom.
     timeout-minutes: 40
     env:
-      CMUX_CI_XCODE_APP: ${{ vars.CMUX_CI_XCODE_APP_MACOS_15 }}
-      CMUX_CI_HELPER_XCODE_APP: ${{ vars.CMUX_CI_HELPER_XCODE_APP_MACOS_15 }}
+      CMUX_CI_XCODE_APP: ${{ vars.CMUX_CI_XCODE_APP_MACOS_26 }}
       CMUX_CI_REQUIRED_MACOS_SDK_MAJOR: "26"
     steps:
       - name: Clear stale git locks (self-hosted reused workspace)
@@ -1000,12 +1108,10 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Select helper Xcode
+      - name: Select Xcode
         run: |
           set -euo pipefail
-          CMUX_CI_XCODE_APP="$CMUX_CI_HELPER_XCODE_APP" \
-            CMUX_CI_REQUIRED_MACOS_SDK_MAJOR=15 \
-            ./scripts/select-ci-xcode.sh
+          ./scripts/select-ci-xcode.sh
 
       - name: Install zig
         run: ./scripts/install-zig-ci.sh
@@ -1027,8 +1133,11 @@ jobs:
             thin="ghostty-cli-helper/ghostty-$arch"
             lipo ghostty-cli-helper/ghostty -thin "$arch" -output "$thin"
             HELPER_SDK_VERSION="$(otool -l "$thin" | awk '/LC_BUILD_VERSION/ { in_version=1; next } in_version && /sdk / { print $2; exit }')"
-            echo "Ghostty helper $arch SDK version: $HELPER_SDK_VERSION"
-            [[ "$HELPER_SDK_VERSION" == 15.* ]]
+            HELPER_MINOS="$(otool -l "$thin" | awk '/LC_BUILD_VERSION/ { in_version=1; next } in_version && /minos / { print $2; exit }')"
+            echo "Ghostty helper $arch minos: $HELPER_MINOS (SDK $HELPER_SDK_VERSION)"
+            # The SDK follows the lane's Xcode; what must never regress is the
+            # helper's macOS support floor.
+            [[ "$HELPER_MINOS" == 13.* ]]
           done
 
       - name: Upload universal Ghostty CLI helper
@@ -1049,11 +1158,6 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-      - name: Select Xcode
-        run: |
-          set -euo pipefail
-          ./scripts/select-ci-xcode.sh
-
       - name: Capture Ghostty revision
         id: ghostty-revision
         run: |
@@ -1064,7 +1168,7 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: GhosttyKit.xcframework
-          key: ghosttykit-${{ steps.ghostty-revision.outputs.sha }}
+          key: ghosttykit-sentry-off-v1-${{ steps.ghostty-revision.outputs.sha }}
 
       - name: Validate cached GhosttyKit.xcframework
         id: validate-ghosttykit-package-tests
@@ -1146,18 +1250,12 @@ jobs:
             echo "::group::swift test $pkgdir"
             case "$pkg" in
             CmuxTerminal|CmuxTerminalCore)
-              test_status=0
-              output="$(swift test --package-path "$pkgdir" 2>&1)" || test_status=$?
-              printf '%s\n' "$output"
-              if [ "$test_status" -ne 0 ]; then
-                if printf '%s\n' "$output" | grep -Eq 'Test run with [0-9]+ tests( in [0-9]+ suites)? passed' \
-                  && ! printf '%s\n' "$output" | grep -Eq 'with [1-9][0-9]* failures?' \
-                  && ! printf '%s\n' "$output" | grep -v 'unexpected binary' | grep -Eq '(^|[^a-zA-Z])error:'; then
-                  echo "Tolerated cosmetic GhosttyKit binaryTarget diagnostic; all tests passed."
-                else
-                  exit "$test_status"
-                fi
-              fi
+              # Swift Testing can finish every assertion but leave its aggregate
+              # runner alive when process-global terminal state spans suites.
+              # Run one suite per process so state is torn down deterministically,
+              # while retaining the narrow GhosttyKit diagnostic exception.
+              CMUX_SWIFT_TEST_TOLERATE_GHOSTTY_BINARY_DIAGNOSTIC=1 \
+                ./scripts/ci/run-swift-testing-suites.sh "$pkgdir"
               ;;
             CmuxRemoteWorkspace|CmuxRemoteSession)
               # The Remote* family is timing/subprocess-sensitive on 3-core
@@ -1175,7 +1273,25 @@ jobs:
                 --skip RemoteSessionProcessRunner
               ;;
             *)
-              swift test --package-path "$pkgdir"
+              # Blacksmith macOS runners intermittently abort a package's
+              # test runner at startup (signal 5/6 immediately after "Build
+              # complete!", zero test output). That is a runner flake, not a
+              # test failure: retry exactly once, and only when no test
+              # failures were reported.
+              test_status=0
+              output="$(swift test --package-path "$pkgdir" 2>&1)" || test_status=$?
+              printf '%s\n' "$output"
+              if [ "$test_status" -ne 0 ] \
+                && printf '%s\n' "$output" | grep -q 'Exited with unexpected signal code' \
+                && ! printf '%s\n' "$output" | grep -Eq 'with [1-9][0-9]* failures?'; then
+                echo "Test runner crashed at startup (runner flake); retrying $pkg once."
+                test_status=0
+                output="$(swift test --package-path "$pkgdir" 2>&1)" || test_status=$?
+                printf '%s\n' "$output"
+              fi
+              if [ "$test_status" -ne 0 ]; then
+                exit "$test_status"
+              fi
               ;;
             esac
             echo "::endgroup::"
@@ -1184,7 +1300,7 @@ jobs:
   agent-session-web-resources:
     needs: changes
     if: ${{ needs.changes.outputs.agent_session_web == 'true' }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: runs-on=${{ github.run_id }}-agent-session-web-resources/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -1211,7 +1327,7 @@ jobs:
       - diff-sidecar-check
       - agent-session-web-resources
     if: ${{ always() }}
-    runs-on: ${{ vars.LINUX_RUNNER || 'blacksmith-4vcpu-ubuntu-2404' }}
+    runs-on: runs-on=${{ github.run_id }}-linux-preflight/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 5
     steps:
       - name: Check cheap CI layer before macOS runners
@@ -1283,8 +1399,8 @@ jobs:
     # Build the full zerocmux scheme and run the lag regression on macOS CI.
     # Keep lag validation separate from UI regressions so functional UI failures
     # and performance regressions stay isolated. Broader interactive UI suites
-    # still run via test-e2e.yml on GitHub-hosted runners.
-    runs-on: blacksmith-6vcpu-macos-15
+    # still run via test-e2e.yml on isolated Tart runners.
+    runs-on: tartelet
     # A cold DerivedData cache (any project.pbxproj or Package.resolved change
     # mints a new cache key with no restore-keys fallback) forces a full
     # zerocmux build whose Swift codegen alone can run 20+ min. Project/package
@@ -1292,34 +1408,9 @@ jobs:
     # CA, lag, and UI regressions beyond 35 min before the cache could repopulate.
     timeout-minutes: 75
     env:
-      CMUX_CI_XCODE_APP: ${{ vars.CMUX_CI_XCODE_APP_MACOS_15 }}
+      CMUX_CI_XCODE_APP: ${{ vars.CMUX_CI_XCODE_APP_MACOS_26 }}
       CMUX_CI_REQUIRED_MACOS_SDK_MAJOR: "26"
     steps:
-      - name: Validate display runner identity
-        env:
-          REQUESTED_RUNNER: macos-latest
-          RUNNER_CONTEXT_NAME: ${{ runner.name }}
-        run: |
-          set -euo pipefail
-          echo "Requested runner: $REQUESTED_RUNNER"
-          case "$REQUESTED_RUNNER" in
-            depot-*)
-              case "$RUNNER_CONTEXT_NAME" in
-                depot-*)
-                  echo "Resolved runner matches depot-*? yes"
-                  ;;
-                *)
-                  echo "Resolved runner matches depot-*? no"
-                  echo "::error::$REQUESTED_RUNNER resolved outside Depot. Remove $REQUESTED_RUNNER from non-Depot self-hosted runners or choose a different runner."
-                  exit 1
-                  ;;
-              esac
-              ;;
-            *)
-              echo "Display runner is not Depot; skipping Depot identity guard"
-              ;;
-          esac
-
       - name: Clear stale git locks (self-hosted reused workspace)
         shell: bash
         run: |
@@ -1360,7 +1451,7 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: GhosttyKit.xcframework
-          key: ghosttykit-${{ steps.ghostty-revision.outputs.sha }}
+          key: ghosttykit-sentry-off-v1-${{ steps.ghostty-revision.outputs.sha }}
 
       - name: Download pre-built GhosttyKit.xcframework
         if: steps.cache-ghosttykit-lag.outputs.cache-hit != 'true'
@@ -1623,9 +1714,8 @@ jobs:
     # Keep the app build on macOS 26 so SDK-gated SwiftUI Liquid Glass code
     # compiles into the same artifact shape as nightly and stable releases.
     # Release builds need enough disk for a universal Release build plus the
-    # restored SwiftPM cache. Default to a clean paid macOS 26 runner instead
-    # of the generic persistent macOS 26 pool.
-    runs-on: blacksmith-6vcpu-macos-26
+    # restored SwiftPM cache. Use a clean, ephemeral Tart VM.
+    runs-on: tartelet
     timeout-minutes: 60
     env:
       CMUX_CI_XCODE_APP: ${{ vars.CMUX_CI_XCODE_APP_MACOS_26 }}
@@ -1678,7 +1768,7 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: GhosttyKit.xcframework
-          key: ghosttykit-${{ steps.ghostty-revision.outputs.sha }}
+          key: ghosttykit-sentry-off-v1-${{ steps.ghostty-revision.outputs.sha }}
 
       - name: Download pre-built GhosttyKit.xcframework
         if: steps.cache-ghosttykit-release.outputs.cache-hit != 'true'
@@ -1734,7 +1824,7 @@ jobs:
         run: |
           set -euo pipefail
           cache_path="build-universal/CompilationCache.noindex"
-          max_cache_kib=$((3 * 1024 * 1024))
+          max_cache_kib=$((5 * 1024 * 1024))
           if [ -d "$cache_path" ]; then
             cache_kib=$(du -sk "$cache_path" | awk '{print $1}')
           else
@@ -1742,7 +1832,7 @@ jobs:
           fi
           echo "Xcode compilation cache size: ${cache_kib} KiB (limit: ${max_cache_kib} KiB)"
           if [ "$cache_kib" -gt "$max_cache_kib" ]; then
-            echo "Xcode compilation cache exceeds 3 GiB; skipping cache save"
+            echo "Xcode compilation cache exceeds 5 GiB; skipping cache save"
             rm -rf "$cache_path"
           fi
 
@@ -1782,36 +1872,11 @@ jobs:
   ui-regressions:
     needs: changes
     if: ${{ needs.changes.outputs.macos == 'true' }}
-    runs-on: blacksmith-6vcpu-macos-15
+    runs-on: tartelet
     # Cold builds after project/package changes can spend more than 25 minutes
     # in build-for-testing before the UI regression script starts.
     timeout-minutes: 45
     steps:
-      - name: Validate display runner identity
-        env:
-          REQUESTED_RUNNER: macos-latest
-          RUNNER_CONTEXT_NAME: ${{ runner.name }}
-        run: |
-          set -euo pipefail
-          echo "Requested runner: $REQUESTED_RUNNER"
-          case "$REQUESTED_RUNNER" in
-            depot-*)
-              case "$RUNNER_CONTEXT_NAME" in
-                depot-*)
-                  echo "Resolved runner matches depot-*? yes"
-                  ;;
-                *)
-                  echo "Resolved runner matches depot-*? no"
-                  echo "::error::$REQUESTED_RUNNER resolved outside Depot. Remove $REQUESTED_RUNNER from non-Depot self-hosted runners or choose a different runner."
-                  exit 1
-                  ;;
-              esac
-              ;;
-            *)
-              echo "Display runner is not Depot; skipping Depot identity guard"
-              ;;
-          esac
-
       - name: Clear stale git locks (self-hosted reused workspace)
         shell: bash
         run: |
@@ -1911,18 +1976,7 @@ jobs:
             build-for-testing
 
       - name: Enable XCTest automation mode
-        run: |
-          set -euo pipefail
-          if ! command -v automationmodetool >/dev/null 2>&1; then
-            echo "::warning::automationmodetool is unavailable; XCTest will use its default automation-mode setup"
-            exit 0
-          fi
-
-          if sudo -n true 2>/dev/null; then
-            sudo -n automationmodetool enable-automationmode-without-authentication
-          else
-            echo "::warning::Passwordless sudo unavailable; XCTest will use its default automation-mode setup"
-          fi
+        run: scripts/ci/enable-xctest-automation-mode.sh
 
       - name: Run display resolution churn UI regression
         run: |
@@ -2291,7 +2345,7 @@ jobs:
       - release-build
       - ui-regressions
     if: ${{ always() }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: runs-on=${{ github.run_id }}-ci-status/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     steps:
       - name: Check routed CI jobs
         env:

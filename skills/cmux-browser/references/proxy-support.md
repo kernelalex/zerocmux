@@ -2,7 +2,7 @@
 
 How proxy behavior works for zerocmux browser automation.
 
-**Related**: [commands.md](commands.md), [SKILL.md](../SKILL.md)
+There is no `cmux browser proxy ...` command for per-surface routing: WKWebView has no CDP-style per-context proxy controls. Configure a system or network-level proxy for the environment cmux runs in, or route traffic through an upstream gateway you control.
 
 ## Contents
 
@@ -33,5 +33,3 @@ Why: WKWebView does not provide CDP-style per-context proxy controls equivalent 
 zerocmux browser open https://httpbin.org/ip --json
 zerocmux browser surface:7 get text body
 ```
-
-Compare returned IP against expected proxy egress.

@@ -2,6 +2,23 @@
 
 Global app preferences live in `~/.config/cmux/cmux.json`.
 
+## `mobile.artifactFolderAccess`
+
+Controls which files and folders cmux on iOS may browse after a chat references a directory or a directory path appears in a terminal.
+
+```json
+{
+  "mobile": {
+    "artifactFolderAccess": "subtree"
+  }
+}
+```
+
+- `subtree` (default): authorize the referenced directory and its full subtree.
+- `oneLevel`: preserve the previous rule, authorizing only immediate children and listing only the referenced directory itself.
+
+Authorization compares canonical paths after resolving symlinks. A symlink inside an authorized folder cannot grant access to a target outside that folder.
+
 ## `paneBorderColor` and `activePaneBorderColor`
 
 Customize split-workspace pane boundaries controlled by zerocmux.
@@ -100,7 +117,7 @@ Opt-in Agent Hibernation. zerocmux kills idle background agent processes to free
 }
 ```
 
-- `enabled`: turn Agent Hibernation on. Default: `false`.
+- `enabled`: turn routine Agent Hibernation on. Default: `false`. Critical-pressure safety hibernation remains active when this is `false`.
 - `idleSeconds`: seconds a background idle agent terminal must be quiet before it can hibernate. A ~60s confirmation settle window still applies on top of this. Default: `5`. Range: `5`-`604800`.
 - `maxLiveTerminals`: how many live restorable agent terminals to keep before zerocmux hibernates the oldest idle background ones. Nothing hibernates while you are at or under this count. Default: `12`. Range: `1`-`256`.
 
@@ -131,6 +148,10 @@ The spinner is compositor-driven (a Core Animation transform run by the render s
 `terminal.showTextBoxOnNewTerminals` opens the TextBox on newly-created terminal sessions without moving keyboard focus into it.
 
 `terminal.focusTextBoxOnNewTerminals` opens the TextBox and focuses it for foreground terminal sessions created from the app UI, such as new terminal workspaces, tabs, and splits. Terminals created through the zerocmux CLI/control socket do not auto-focus the TextBox, even when this setting is enabled, so background automation does not steal keyboard focus.
+
+## Workspace terminal font size shortcuts
+
+Cmd+Ctrl+= and Cmd+Ctrl+- increase or decrease every terminal in the selected workspace by one point. Cmd+Ctrl+0 resets them to the current Ghostty font size. Hidden, hibernated, and Dock terminals change with visible terminals, and newly created terminals inherit the workspace size. Rebind them with `shortcuts.bindings.increaseWorkspaceTerminalFontSize`, `shortcuts.bindings.decreaseWorkspaceTerminalFontSize`, and `shortcuts.bindings.resetWorkspaceTerminalFontSize`.
 
 ## `terminal.textBoxSubmitActions`
 

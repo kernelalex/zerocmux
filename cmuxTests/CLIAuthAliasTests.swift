@@ -1,124 +1,46 @@
 import XCTest
 import Darwin
 
+/// zerocmux removed the hosted web backend, so there is no sign-in popup behind
+/// `login` / `logout` / `auth`. Upstream's aliases forwarded to
+/// `auth.begin_sign_in` / `auth.sign_out` over the socket; this fork answers
+/// them locally instead.
+///
+/// These tests pin that replacement contract rather than the removed one. The
+/// interesting property is not just "it errors" — it is that the verbs stay
+/// *recognized*, so users get an explanation instead of "Unknown command", and
+/// that they resolve without opening a socket conversation at all, which is
+/// what keeps the zero-telemetry promise verifiable.
 extension CLINotifyProcessIntegrationRegressionTests {
-    func testTopLevelLoginAliasesAuthLogin() throws {
-        let cliPath = try bundledCLIPath()
-        let socketPath = makeSocketPath("auth-login")
-        let listenerFD = try bindUnixSocket(at: socketPath)
-        let state = MockSocketServerState()
-
-        defer {
-            Darwin.close(listenerFD)
-            unlink(socketPath)
-        }
-
-        let serverHandled = startMockServer(listenerFD: listenerFD, state: state) { line in
-            guard let payload = self.jsonObject(line),
-                  let id = payload["id"] as? String,
-                  let method = payload["method"] as? String else {
-                return self.malformedRequestResponse(raw: line)
-            }
-
-            switch method {
-            case "auth.status":
-                return self.v2Response(id: id, ok: true, result: ["signed_in": false])
-            case "auth.begin_sign_in":
-                return self.v2Response(
-                    id: id,
-                    ok: true,
-                    result: [
-                        "signed_in": true,
-                        "user": ["email": "dev@example.com"],
-                    ]
-                )
-            default:
-                return self.v2Response(
-                    id: id,
-                    ok: false,
-                    error: ["code": "unexpected", "message": "Unexpected method \(method)"]
-                )
-            }
-        }
-
-        var environment = ProcessInfo.processInfo.environment
-        environment["CMUX_SOCKET_PATH"] = socketPath
-        environment["CMUX_CLI_SENTRY_DISABLED"] = "1"
-
-        let result = runProcess(
-            executablePath: cliPath,
-            arguments: ["login"],
-            environment: environment,
-            timeout: 5
-        )
-
-        wait(for: [serverHandled], timeout: 5)
-        XCTAssertFalse(result.timedOut, result.stderr)
-        XCTAssertEqual(result.status, 0, result.stderr)
-        XCTAssertEqual(result.stdout, "Opening sign-in popup on the zerocmux web app.\nSigned in as dev@example.com.\n")
-        XCTAssertTrue(
-            state.commands.contains { $0.contains(#""method":"auth.begin_sign_in""#) },
-            "Expected login alias to call auth.begin_sign_in, saw \(state.commands)"
-        )
+    func testTopLevelLoginReportsHostedAuthRemovedWithoutSocketTraffic() throws {
+        try assertHostedServicesUnavailable(["login"], socketLabel: "auth-login")
     }
 
-    func testTopLevelLogoutAliasesAuthLogout() throws {
-        let cliPath = try bundledCLIPath()
-        let socketPath = makeSocketPath("auth-logout")
-        let listenerFD = try bindUnixSocket(at: socketPath)
-        let state = MockSocketServerState()
+    func testTopLevelLogoutReportsHostedAuthRemovedWithoutSocketTraffic() throws {
+        try assertHostedServicesUnavailable(["logout"], socketLabel: "auth-logout")
+    }
 
-        defer {
-            Darwin.close(listenerFD)
-            unlink(socketPath)
-        }
+    func testAuthNamespaceReportsHostedAuthRemovedWithoutSocketTraffic() throws {
+        try assertHostedServicesUnavailable(["auth", "status"], socketLabel: "auth-status")
+    }
 
-        let serverHandled = startMockServer(listenerFD: listenerFD, state: state) { line in
-            guard let payload = self.jsonObject(line),
-                  let id = payload["id"] as? String,
-                  let method = payload["method"] as? String else {
-                return self.malformedRequestResponse(raw: line)
-            }
-
-            switch method {
-            case "auth.status":
-                return self.v2Response(
-                    id: id,
-                    ok: true,
-                    result: [
-                        "signed_in": true,
-                        "user": ["email": "dev@example.com"],
-                    ]
-                )
-            case "auth.sign_out":
-                return self.v2Response(id: id, ok: true, result: ["signed_in": false])
-            default:
-                return self.v2Response(
-                    id: id,
-                    ok: false,
-                    error: ["code": "unexpected", "message": "Unexpected method \(method)"]
-                )
-            }
-        }
-
-        var environment = ProcessInfo.processInfo.environment
-        environment["CMUX_SOCKET_PATH"] = socketPath
-        environment["CMUX_CLI_SENTRY_DISABLED"] = "1"
-
-        let result = runProcess(
-            executablePath: cliPath,
-            arguments: ["logout"],
-            environment: environment,
-            timeout: 5
+    /// Scripts that ask for `--json` must get a machine-readable refusal rather
+    /// than a bare non-zero exit, so automation can tell "removed" apart from
+    /// "the app is not running".
+    func testRemovedHostedVerbsEmitMachineReadableUnavailability() throws {
+        let (result, requestBytes) = try runRemovedHostedVerb(
+            ["logout", "--json"],
+            socketLabel: "auth-logout-json"
         )
 
-        wait(for: [serverHandled], timeout: 5)
-        XCTAssertFalse(result.timedOut, result.stderr)
-        XCTAssertEqual(result.status, 0, result.stderr)
-        XCTAssertEqual(result.stdout, "Signed out.\n")
-        XCTAssertTrue(
-            state.commands.contains { $0.contains(#""method":"auth.sign_out""#) },
-            "Expected logout alias to call auth.sign_out, saw \(state.commands)"
+        XCTAssertEqual(result.status, 1, result.stderr)
+        XCTAssertEqual(requestBytes, 0, "the --json refusal must not send a request either")
+
+        let document = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(result.stdout.utf8)) as? [String: Any],
+            "expected a JSON document on stdout, got \(result.stdout)"
         )
+        XCTAssertEqual(document["available"] as? Bool, false)
+        XCTAssertEqual(document["reason"] as? String, Self.hostedServicesUnavailableMessage)
     }
 }

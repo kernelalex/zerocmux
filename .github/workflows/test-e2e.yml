@@ -1,5 +1,5 @@
 name: E2E test with video recording
-run-name: ${{ inputs.test_filter }} on ${{ (!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'macos-15') || inputs.runner }} @ ${{ inputs.ref || github.ref_name }}
+run-name: ${{ inputs.test_filter }} on ${{ (!inputs.runner || inputs.runner == 'auto') && 'tartelet' || inputs.runner }} @ ${{ inputs.ref || github.ref_name }}
 
 on:
   workflow_dispatch:
@@ -25,68 +25,37 @@ on:
         default: true
         type: boolean
       runner:
-        description: "Runner OS (auto follows MACOS_RUNNER_15; tart-* choices use isolated VMs)"
+        description: "Runner OS (auto uses the self-hosted Tart pool)"
         required: false
         default: "auto"
         type: choice
         options:
           - auto
-          - blacksmith-6vcpu-macos-15
-          - blacksmith-6vcpu-macos-26
-          - blacksmith-6vcpu-macos-latest
-          - warp-macos-15-arm64-6x
-          - depot-macos-latest
-          - depot-macos-14
-          - tart-canary
-          - tart-dual
-          - tart-small
+          - tartelet
 
 concurrency:
-  group: e2e-${{ (!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'macos-15') || inputs.runner }}-${{ inputs.ref || github.ref_name }}-${{ inputs.test_filter }}
+  group: e2e-${{ (!inputs.runner || inputs.runner == 'auto') && 'tartelet' || inputs.runner }}-${{ inputs.ref || github.ref_name }}-${{ inputs.test_filter }}
   cancel-in-progress: true
 
 jobs:
   e2e:
-    runs-on: ${{ (!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'macos-15') || inputs.runner }}
+    runs-on: ${{ (!inputs.runner || inputs.runner == 'auto') && 'tartelet' || inputs.runner }}
     timeout-minutes: ${{ fromJSON(inputs.job_timeout || '20') }}
     env:
       TEST_REF: ${{ inputs.ref || github.ref }}
     steps:
-      - name: Validate Depot runner identity
-        if: ${{ startsWith((!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'macos-15') || inputs.runner, 'depot-macos-') }}
+      - name: Validate Tart self-hosted routing
         env:
-          REQUESTED_RUNNER: ${{ (!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'macos-15') || inputs.runner }}
-          RUNNER_CONTEXT_NAME: ${{ runner.name }}
+          REQUESTED_RUNNER: ${{ (!inputs.runner || inputs.runner == 'auto') && 'tartelet' || inputs.runner }}
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
         run: |
           set -euo pipefail
-          echo "Requested runner: $REQUESTED_RUNNER"
-          case "$RUNNER_CONTEXT_NAME" in
-            depot-*)
-              echo "Resolved runner matches depot-*? yes"
-              ;;
-            *)
-              echo "Resolved runner matches depot-*? no"
-              echo "::error::$REQUESTED_RUNNER resolved outside Depot. Remove $REQUESTED_RUNNER from non-Depot self-hosted runners or choose an explicit runner."
-              exit 1
-              ;;
-          esac
-
-      - name: Validate Tart canary identity
-        if: ${{ startsWith((!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'blacksmith-6vcpu-macos-15') || inputs.runner, 'tart-') }}
-        env:
-          REQUESTED_RUNNER: ${{ (!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'blacksmith-6vcpu-macos-15') || inputs.runner }}
-          RUNNER_CONTEXT_NAME: ${{ runner.name }}
-        run: |
-          set -euo pipefail
-          case "$RUNNER_CONTEXT_NAME" in
-            tart-cmux-*) ;;
-            *)
-              echo "::error::$REQUESTED_RUNNER resolved to unexpected runner $RUNNER_CONTEXT_NAME"
-              exit 1
-              ;;
-          esac
-          test -f /etc/cmux-tart-ci || {
-            echo "::error::$REQUESTED_RUNNER runner is missing the immutable VM identity marker"
+          test "$REQUESTED_RUNNER" = "tartelet" || {
+            echo "::error::unexpected macOS runner label: $REQUESTED_RUNNER"
+            exit 1
+          }
+          test "$RUNNER_ENVIRONMENT" = "self-hosted" || {
+            echo "::error::$REQUESTED_RUNNER did not resolve to a self-hosted runner"
             exit 1
           }
 
@@ -292,8 +261,8 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: .ci-source-packages
-          key: spm-${{ (!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'macos-15') || inputs.runner }}-${{ hashFiles('cmux.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
-          restore-keys: spm-${{ (!inputs.runner || inputs.runner == 'auto') && (vars.MACOS_RUNNER_15 || 'macos-15') || inputs.runner }}-
+          key: spm-${{ (!inputs.runner || inputs.runner == 'auto') && 'tartelet' || inputs.runner }}-${{ hashFiles('cmux.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: spm-${{ (!inputs.runner || inputs.runner == 'auto') && 'tartelet' || inputs.runner }}-
 
       - name: Sanitize Swift package cache
         run: python3 scripts/ci/sanitize-xcode-source-packages-cache.py .ci-source-packages
@@ -419,10 +388,7 @@ jobs:
             GUI_USER="$(stat -f %Su /dev/console 2>/dev/null || true)"
             if [ -n "$GUI_USER" ] && [ "$GUI_USER" != "root" ] && GUI_UID="$(id -u "$GUI_USER" 2>/dev/null)"; then
               echo "Console GUI user: $GUI_USER ($GUI_UID); current user: $CURRENT_USER"
-              if command -v automationmodetool >/dev/null 2>&1; then
-                sudo -n automationmodetool enable-automationmode-without-authentication \
-                  || echo "::warning::Could not enable Automation Mode"
-              fi
+              scripts/ci/enable-xctest-automation-mode.sh
 
               if sudo -n true 2>/dev/null; then
                 RUN_XCODEBUILD=(

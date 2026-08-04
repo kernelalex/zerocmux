@@ -9,29 +9,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14-large
-            timeout: 60
-            run_unit_tests: false
-            startup_smoke: true
-            virtual_display: true
-            skip_zig: false
-            expected_arch: x86_64
-            expected_os_major: "14"
-          - os: blacksmith-6vcpu-macos-15
-            timeout: 30
-            run_unit_tests: true
-            startup_smoke: true
-            virtual_display: true
-            skip_zig: false
-            expected_arch: ""
-            expected_os_major: ""
-          - os: macos-26
+          # RunsOn does not support macOS. Exercise the current self-hosted
+          # Tart image; Xcode selection below enforces the toolchain contract.
+          - os: tartelet
             timeout: 30
             run_unit_tests: true
             startup_smoke: true
             virtual_display: false
             skip_zig: true  # zig 0.15.2 MachO linker can't resolve libSystem on macOS 26
-            expected_arch: ""
+            expected_arch: arm64
             expected_os_major: ""
     runs-on: ${{ matrix.os }}
     timeout-minutes: ${{ matrix.timeout }}
@@ -47,9 +33,8 @@ jobs:
           EXPECTED_OS_MAJOR: ${{ matrix.expected_os_major }}
         run: |
           set -euo pipefail
-          # Pick the latest Xcode installed on the runner. GitHub-hosted macos-14
-          # defaults to Xcode 15.4, but the project needs Xcode 16+ (Swift tools
-          # version 6.0 required by SwiftPM dependencies).
+          # Pick the latest Xcode installed on the Tart image. The project needs
+          # Xcode 16+ because SwiftPM dependencies use Swift tools version 6.0.
           XCODE_APP="$(
             find /Applications -maxdepth 1 -name 'Xcode*.app' -print 2>/dev/null \
               | sort \
@@ -95,7 +80,7 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: GhosttyKit.xcframework
-          key: ghosttykit-${{ steps.ghostty-revision.outputs.sha }}
+          key: ghosttykit-sentry-off-v1-${{ steps.ghostty-revision.outputs.sha }}
 
       - name: Prepare GhosttyKit.xcframework
         if: steps.cache-ghosttykit.outputs.cache-hit != 'true'
@@ -156,6 +141,7 @@ jobs:
               -clonedSourcePackagesDirPath "$SOURCE_PACKAGES_DIR" \
               -disableAutomaticPackageResolution \
               -destination "platform=macOS" \
+              COMPILER_INDEX_STORE_ENABLE=NO \
               test 2>&1
           }
 
@@ -180,13 +166,7 @@ jobs:
           fi
 
           if [ "$EXIT_CODE" -ne 0 ]; then
-            SUMMARY=$(echo "$OUTPUT" | grep "Executed.*tests.*with.*failures" | tail -1)
-            if echo "$SUMMARY" | grep -q "(0 unexpected)"; then
-              echo "All failures are expected, treating as pass"
-            else
-              echo "Unexpected test failures detected"
-              exit 1
-            fi
+            ./scripts/ci/xctest-summary-gate.sh /tmp/test-output.txt
           fi
 
       - name: Create virtual display
@@ -215,7 +195,9 @@ jobs:
           xcodebuild -project cmux.xcodeproj -scheme zerocmux -configuration Debug \
             -clonedSourcePackagesDirPath "$SOURCE_PACKAGES_DIR" \
             -disableAutomaticPackageResolution \
-            -destination "platform=macOS" build
+            -destination "platform=macOS" \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            build
 
       - name: Smoke test
         if: matrix.startup_smoke

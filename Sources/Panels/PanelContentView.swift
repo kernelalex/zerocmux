@@ -1,4 +1,5 @@
 import CmuxFoundation
+import CmuxNotifications
 import SwiftUI
 import Foundation
 import Bonsplit
@@ -13,6 +14,8 @@ struct PanelContentView: View {
     let isFocused: Bool
     let isSelectedInPane: Bool
     let isVisibleInUI: Bool
+    let allowsPointerInput: Bool
+    var pointerEntryEventFilter: (@MainActor (NSEvent) -> Bool)? = nil
     let portalPriority: Int
     let isSplit: Bool
     let appearance: PanelAppearance
@@ -125,6 +128,26 @@ struct PanelContentView: View {
                     )
                 }
             }
+        case .simulator:
+            if let simulatorPanel = panel as? SimulatorPanel {
+                if CmuxFeatureFlags.shared.isSimulatorEnabled,
+                   simulatorPanel.isFeatureReady {
+                    SimulatorPanelView(
+                        panel: simulatorPanel,
+                        isFocused: isFocused,
+                        isVisibleInUI: isVisibleInUI,
+                        allowsPointerInput: allowsPointerInput,
+                        pointerEntryEventFilter: pointerEntryEventFilter,
+                        appearance: appearance,
+                        onRequestPanelFocus: onRequestPanelFocus
+                    )
+                } else {
+                    SimulatorFeatureDisabledView(
+                        panel: simulatorPanel,
+                        appearance: appearance
+                    )
+                }
+            }
         case .agentSession:
             if let agentSessionPanel = panel as? AgentSessionPanel {
                 AgentSessionPanelView(
@@ -165,6 +188,11 @@ struct PanelContentView: View {
                 CloudVMLoadingPanelView(panel: loadingPanel)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+        case .mobilePairing, .accountSignIn:
+            // zerocmux: mobile pairing and hosted sign-in are removed. The panel
+            // kinds survive only so restored upstream sessions decode; nothing
+            // can create these panels, and they render empty if one appears.
+            EmptyView()
         }
     }
 
@@ -182,7 +210,7 @@ struct PanelContentView: View {
     private var shouldInstallPaneDropTarget: Bool {
         guard isVisibleInUI else { return false }
         switch panel.panelType {
-        case .markdown, .filePreview, .rightSidebarTool, .customSidebar, .agentSession, .project, .extensionBrowser, .workspaceTodo, .cloudVMLoading:
+        case .markdown, .filePreview, .rightSidebarTool, .customSidebar, .simulator, .agentSession, .project, .extensionBrowser, .workspaceTodo, .cloudVMLoading, .mobilePairing, .accountSignIn:
             return true
         case .terminal, .browser:
             return false

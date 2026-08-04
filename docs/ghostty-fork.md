@@ -22,6 +22,37 @@ fork's `build-ghosttykit.yml` workflow, published at
 https://github.com/kernelalex/zerocmux/releases/tag/xcframework-bb30526cdab8f5fb08ae43e404e3aacc40d3ffc3-sentry-off-crashsubdir-zerocmux-crash-v1,
 and pinned in `scripts/ghosttykit-checksums.txt`.
 
+### Tokened renderer presentation callbacks
+
+- Commits:
+  - `d303f9c89` (add tokened render presentation callbacks)
+  - `a9d462403` (preserve presentation tokens across render backends)
+  - `24284c3ba` (merge fork `main` at `bb30526cd`)
+- Files:
+  - `include/ghostty.h`
+  - `src/Surface.zig`
+  - `src/apprt/embedded.zig`
+  - `src/renderer.zig`
+  - `src/renderer/Metal.zig`
+  - `src/renderer/OpenGL.zig`
+  - `src/renderer/Thread.zig`
+  - `src/renderer/generic.zig`
+  - `src/renderer/metal/Frame.zig`
+  - `src/renderer/metal/IOSurfaceLayer.zig`
+  - `src/renderer/opengl/Frame.zig`
+- Summary:
+  - Adds an explicit render token to the embedded render request and returns
+    that token only after the selected target is assigned to the host layer.
+  - Preserves the token through Metal, OpenGL, and the generic renderer path so
+    a stale command-buffer completion cannot acknowledge a newer iOS replay.
+  - Keeps the existing layer-size guard authoritative. A target discarded after
+    geometry changes emits no false presentation callback.
+  - Conflict note: future renderer refactors must carry the token through every
+    backend and invoke the callback only after the exact target assignment.
+
+The previous `bb30526cd` pin contains the merged theme, render-grid,
+wrap-aware URL, and authoritative sprite-font shaping changes.
+
 ### Authoritative sprite-font shaping runs
 
 - Commits:
@@ -403,10 +434,25 @@ tend to conflict together during rebases.
   - `46bd03a7` (surface: add absolute screen row text read)
   - `edad0cfec` (surface: format screen row clipboard text)
   - `e81fb65f` (surface: bound screen clipboard text formatting)
+  - `aeed68c44` (Expose native keyboard selection geometry)
+  - `65505e8c3` (Make keyboard copy navigation atomic)
+  - `acefff5de` (Bound copy work and expose runtime cursor style)
+  - `7a5d08b7c` (Preserve rich bounded keyboard copies)
+  - `4a6c443c3` (Preserve plain bounded clipboard copies)
+- PRs:
+  - https://github.com/manaflow-ai/ghostty/pull/154
+  - https://github.com/manaflow-ai/ghostty/pull/156
+  - https://github.com/manaflow-ai/ghostty/pull/157
+  - https://github.com/manaflow-ai/ghostty/pull/159
+  - https://github.com/manaflow-ai/ghostty/pull/160
 - Files:
   - `include/ghostty.h`
   - `src/apprt/embedded.zig`
   - `src/Surface.zig`
+  - `src/termio/Termio.zig`
+  - `src/terminal/Screen.zig`
+  - `src/terminal/Selection.zig`
+  - `src/terminal/render.zig`
 - Summary:
   - Restores `ghostty_surface_select_cursor_cell` and `ghostty_surface_clear_selection`.
   - Keeps zerocmux keyboard copy mode working against the refreshed Ghostty base after upstream removed those exports.

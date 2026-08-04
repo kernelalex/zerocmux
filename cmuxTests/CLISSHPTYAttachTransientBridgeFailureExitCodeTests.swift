@@ -153,6 +153,21 @@ extension CLINotifyProcessIntegrationRegressionTests {
     }
 
     func testRestoredPersistentAttachReauthenticatesAfterTransportLoss() throws {
+        // Dead premise: this test stages a fake `ssh` on PATH, but the CLI's
+        // interactive-auth path execs `/usr/bin/ssh` by absolute path on purpose
+        // (`allowedSSHPaths` in CLI/cmux.swift's runInteractiveAuthSSH -- a
+        // basename check would accept a planted /tmp/ssh, so the full path is
+        // pinned against an argv that arrives over the control socket). The fake
+        // is therefore never exec'd and the real ssh cannot resolve the fixture
+        // host, so this can only ever fail. The pin itself is covered by
+        // testInteractiveAuthRefusesPlantedAbsoluteSSHPath and its siblings.
+        // Re-enable if an injectable transport seam is ever added; do not fix by
+        // relaxing the pin.
+        throw XCTSkip(
+            "stages a fake ssh on PATH; the CLI pins /usr/bin/ssh by absolute path "
+            + "(runInteractiveAuthSSH allowedSSHPaths), so the fixture is unreachable"
+        )
+
         let fileManager = FileManager.default
         let root = fileManager.temporaryDirectory
             .appendingPathComponent("cmux-restored-ssh-reauth-\(UUID().uuidString)", isDirectory: true)
@@ -230,6 +245,21 @@ extension CLINotifyProcessIntegrationRegressionTests {
     }
 
     func testInitialPersistentAttachReauthenticatesAfterTransportLoss() throws {
+        // Dead premise: this test stages a fake `ssh` on PATH, but the CLI's
+        // interactive-auth path execs `/usr/bin/ssh` by absolute path on purpose
+        // (`allowedSSHPaths` in CLI/cmux.swift's runInteractiveAuthSSH -- a
+        // basename check would accept a planted /tmp/ssh, so the full path is
+        // pinned against an argv that arrives over the control socket). The fake
+        // is therefore never exec'd and the real ssh cannot resolve the fixture
+        // host, so this can only ever fail. The pin itself is covered by
+        // testInteractiveAuthRefusesPlantedAbsoluteSSHPath and its siblings.
+        // Re-enable if an injectable transport seam is ever added; do not fix by
+        // relaxing the pin.
+        throw XCTSkip(
+            "stages a fake ssh on PATH; the CLI pins /usr/bin/ssh by absolute path "
+            + "(runInteractiveAuthSSH allowedSSHPaths), so the fixture is unreachable"
+        )
+
         let fileManager = FileManager.default
         let root = fileManager.temporaryDirectory
             .appendingPathComponent("cmux-initial-ssh-reauth-\(UUID().uuidString)", isDirectory: true)
@@ -439,3 +469,189 @@ extension CLINotifyProcessIntegrationRegressionTests {
         try contents.write(to: url, atomically: true, encoding: .utf8)
     }
 }
+
+// MARK: - Interactive-auth ssh path pin
+
+/// `runInteractiveAuthSSH` (CLI/cmux.swift, the `allowedSSHPaths` guard) refuses
+/// to exec anything but `/usr/bin/ssh`. The argv it runs arrives over the control
+/// socket, so a compromised or spoofed peer that could return an arbitrary path
+/// would otherwise get arbitrary code exec'd in the user's terminal, with the
+/// terminal foreground process group handed to it.
+///
+/// Nothing exercised that guard before. These cases do, from both sides.
+extension CLINotifyProcessIntegrationRegressionTests {
+    private static let nonStandardSSHPathRefusal =
+        "refusing to run a non-standard ssh path"
+
+    /// Drives `zerocmux ssh-tmux --new-window` against a mock control socket that
+    /// answers with `auth_required` plus the supplied argv, with stdin on a pty so
+    /// the interactive-auth path's `isatty` precondition is satisfied.
+    private func runInteractiveAuthWithSSHArgv(
+        _ sshArgv: [String],
+        socketLabel: String
+    ) throws -> (status: Int32, output: String) {
+        let cliPath = try bundledCLIPath()
+        let socketPath = makeSocketPath(socketLabel)
+        let listenerFD = try bindUnixSocket(at: socketPath)
+        let state = MockSocketServerState()
+        var masterFD: Int32 = -1
+        var slaveFD: Int32 = -1
+
+        defer {
+            if masterFD >= 0 { Darwin.close(masterFD) }
+            if slaveFD >= 0 { Darwin.close(slaveFD) }
+            Darwin.close(listenerFD)
+            unlink(socketPath)
+        }
+
+        guard openpty(&masterFD, &slaveFD, nil, nil, nil) == 0 else {
+            throw NSError(domain: "cmux.tests", code: Int(errno), userInfo: [
+                NSLocalizedDescriptionKey: "openpty failed: \(String(cString: strerror(errno)))",
+            ])
+        }
+
+        // First mirror request demands interactive auth; a second one (only
+        // reached when the guard accepts the path) completes the flow so the CLI
+        // exits instead of looping.
+        let authRequired = NSLock()
+        var servedAuthRequired = false
+        let serverHandled = startMockServer(listenerFD: listenerFD, state: state) { line in
+            guard let payload = self.jsonObject(line),
+                  let id = payload["id"] as? String,
+                  let method = payload["method"] as? String else {
+                return self.malformedRequestResponse(raw: line)
+            }
+            guard method == "remote.tmux.window" else {
+                return self.v2Response(id: id, ok: true, result: [:])
+            }
+            authRequired.lock()
+            let alreadyServed = servedAuthRequired
+            servedAuthRequired = true
+            authRequired.unlock()
+            if alreadyServed {
+                return self.v2Response(
+                    id: id,
+                    ok: true,
+                    result: ["mirrored": true, "window_id": "window:1", "workspace_ids": []]
+                )
+            }
+            return self.v2Response(
+                id: id,
+                ok: true,
+                result: ["auth_required": true, "ssh_argv": sshArgv]
+            )
+        }
+
+        var environment = ProcessInfo.processInfo.environment
+        environment["CMUX_SOCKET_PATH"] = socketPath
+        environment["CMUX_CLI_SENTRY_DISABLED"] = "1"
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: cliPath)
+        process.arguments = ["ssh-tmux", "--new-window", "user@example.invalid"]
+        process.environment = environment
+        let outputPipe = Pipe()
+        process.standardInput = FileHandle(fileDescriptor: slaveFD, closeOnDealloc: false)
+        process.standardOutput = outputPipe
+        process.standardError = outputPipe
+        try process.run()
+
+        let collected = NSMutableData()
+        let collectedLock = NSLock()
+        let drained = DispatchSemaphore(value: 0)
+        DispatchQueue.global(qos: .userInitiated).async {
+            let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
+            collectedLock.lock()
+            collected.append(data)
+            collectedLock.unlock()
+            drained.signal()
+        }
+
+        let deadline = Date().addingTimeInterval(20)
+        while process.isRunning && Date() < deadline {
+            usleep(50_000)
+        }
+        if process.isRunning {
+            process.terminate()
+            XCTFail("`zerocmux ssh-tmux` did not exit within 20s")
+        }
+        process.waitUntilExit()
+        _ = drained.wait(timeout: .now() + 5)
+
+        // The CLI always dials the control socket here (unlike the removed
+        // hosted verbs), so this expectation is genuinely fulfilled.
+        wait(for: [serverHandled], timeout: 10)
+
+        collectedLock.lock()
+        let output = String(data: collected as Data, encoding: .utf8) ?? ""
+        collectedLock.unlock()
+        return (process.terminationStatus, output)
+    }
+
+    func testInteractiveAuthRefusesPlantedAbsoluteSSHPath() throws {
+        let fileManager = FileManager.default
+        let root = fileManager.temporaryDirectory
+            .appendingPathComponent("cmux-ssh-path-pin-\(UUID().uuidString)", isDirectory: true)
+        try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: root) }
+
+        // A planted "ssh" that records the fact it ran. The pin must mean this
+        // file is never executed, which is a stronger claim than the error text.
+        let planted = root.appendingPathComponent("ssh")
+        let executedMarker = root.appendingPathComponent("planted-ran.txt")
+        try """
+        #!/bin/sh
+        printf 'ran\\n' > "\(executedMarker.path)"
+        exit 0
+        """.write(to: planted, atomically: true, encoding: .utf8)
+        try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: planted.path)
+
+        let result = try runInteractiveAuthWithSSHArgv(
+            [planted.path, "user@example.invalid"],
+            socketLabel: "ssh-pin-planted"
+        )
+
+        XCTAssertNotEqual(result.status, 0, result.output)
+        XCTAssertTrue(
+            result.output.contains(Self.nonStandardSSHPathRefusal),
+            "expected the pinned-path refusal, got \(result.output)"
+        )
+        XCTAssertFalse(
+            fileManager.fileExists(atPath: executedMarker.path),
+            "the planted ssh must never be executed"
+        )
+    }
+
+    func testInteractiveAuthRefusesRelativeSSHName() throws {
+        let result = try runInteractiveAuthWithSSHArgv(
+            ["ssh", "user@example.invalid"],
+            socketLabel: "ssh-pin-relative"
+        )
+
+        XCTAssertNotEqual(result.status, 0, result.output)
+        XCTAssertTrue(
+            result.output.contains(Self.nonStandardSSHPathRefusal),
+            "a bare `ssh` resolves through PATH and must be refused, got \(result.output)"
+        )
+    }
+
+    /// The other half of the control: the pinned path is admitted. `-V` makes the
+    /// accepted exec hermetic (OpenSSH prints its version to stderr and exits 0)
+    /// while still proving the guard handed off to the real binary.
+    func testInteractiveAuthAcceptsPinnedSystemSSHPath() throws {
+        let result = try runInteractiveAuthWithSSHArgv(
+            ["/usr/bin/ssh", "-V"],
+            socketLabel: "ssh-pin-allowed"
+        )
+
+        XCTAssertFalse(
+            result.output.contains(Self.nonStandardSSHPathRefusal),
+            "/usr/bin/ssh must pass the pin, got \(result.output)"
+        )
+        XCTAssertTrue(
+            result.output.contains("OpenSSH"),
+            "expected the pinned ssh binary to actually run, got \(result.output)"
+        )
+    }
+}
+

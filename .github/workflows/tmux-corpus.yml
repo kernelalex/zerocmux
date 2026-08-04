@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   remote-daemon-fuzz:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: runs-on=${{ github.run_id }}-remote-daemon-fuzz/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -61,7 +61,7 @@ jobs:
 
   terminal-nightly:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: blacksmith-6vcpu-macos-15
+    runs-on: tartelet
     timeout-minutes: 30
     env:
       # XCTest app-host crashes can leave xcodebuild waiting in Swift's crash
@@ -97,7 +97,7 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: GhosttyKit.xcframework
-          key: ghosttykit-${{ hashFiles('.gitmodules', 'ghostty/**') }}
+          key: ghosttykit-sentry-off-v1-${{ hashFiles('.gitmodules', 'ghostty/**') }}
 
       - name: Download pre-built GhosttyKit.xcframework
         if: steps.cache-ghosttykit.outputs.cache-hit != 'true'
@@ -154,15 +154,8 @@ jobs:
               -only-testing:cmuxTests/SessionPersistenceTests \
               test 2>&1 | tee /tmp/tmux-terminal-corpus-output.txt
           EXIT_CODE=${PIPESTATUS[0]}
-          OUTPUT=$(cat /tmp/tmux-terminal-corpus-output.txt)
           set -e
 
           if [ "$EXIT_CODE" -ne 0 ]; then
-            SUMMARY=$(echo "$OUTPUT" | grep "Executed.*tests.*with.*failures" | tail -1 || true)
-            if echo "$SUMMARY" | grep -q "(0 unexpected)"; then
-              echo "All failures are expected, treating as pass"
-            else
-              echo "Unexpected terminal corpus test failures detected"
-              exit 1
-            fi
+            ./scripts/ci/xctest-summary-gate.sh /tmp/tmux-terminal-corpus-output.txt
           fi

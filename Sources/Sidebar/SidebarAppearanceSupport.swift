@@ -283,7 +283,7 @@ func sidebarSelectedWorkspaceForegroundNSColor(
     return cmuxReadableForegroundNSColor(on: backgroundColor, opacity: clampedOpacity)
 }
 
-struct SidebarWorkspaceRowBackgroundStyle {
+struct SidebarWorkspaceRowBackgroundStyle: Equatable, Hashable {
     let color: NSColor?
     let opacity: Double
 

@@ -7,9 +7,9 @@ description: "Run end-user zerocmux diagnostics. Use when zerocmux hooks, notifi
 
 Use this skill to collect and interpret support-safe zerocmux diagnostics for end users. Default to read-only checks. Do not dump hook config files, session stores, prompt logs, tokens, or environment secrets.
 
-## Quick Report
+## Quick report
 
-Run the bundled read-only diagnostic script first:
+Run the bundled read-only script first, from whichever install path exists:
 
 ```bash
 # From a zerocmux checkout
