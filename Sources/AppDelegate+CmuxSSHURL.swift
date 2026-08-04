@@ -421,8 +421,7 @@ final class ProcessOutputCollector {
     }
 
     private func appendAvailableData(from handle: FileHandle) {
-        let data = handle.availableData
-        guard !data.isEmpty else { return }
+        guard case .data(let data) = handle.readAvailableDataOrEndOfFile() else { return }
         lock.lock()
         chunks.append(data)
         lock.unlock()

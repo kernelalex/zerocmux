@@ -4473,7 +4473,9 @@ extension SessionPersistenceTests {
         let startupInput = try XCTUnwrap(binding.startupInput)
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        process.arguments = ["-lc", startupInput]
+        // Keep the fixture PATH authoritative. A login shell may source the
+        // runner account's profile and select a real Codex installation.
+        process.arguments = ["-c", startupInput]
         var environment = ProcessInfo.processInfo.environment
         environment["PATH"] = "\(bin.path):\(environment["PATH"] ?? "/usr/bin:/bin")"
         environment["CMUX_FAKE_CODEX_OUTPUT"] = outputURL.path
