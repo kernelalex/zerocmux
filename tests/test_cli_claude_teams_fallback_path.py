@@ -85,6 +85,10 @@ exit 86
         env = os.environ.copy()
         env["HOME"] = str(home)
         env["PATH"] = "/usr/bin:/bin"
+        # Keep the fixture independent of provider CLIs installed in the runner
+        # account's login-shell startup files. This test exercises the explicit
+        # HOME fallback directories populated above.
+        env["SHELL"] = "/usr/bin/false"
         env["TMPDIR"] = str(tmp)
         env["CMUX_CLAUDE_WRAPPER_SHIM"] = str(managed_bin / "claude")
         env["CMUX_CLAUDE_WRAPPER_SHIM_ROOT"] = str(managed_bin)
@@ -142,6 +146,9 @@ exit 86
         )
         if codex_version.returncode != 0 or codex_version.stdout.strip() != "codex fake 1.0":
             print("FAIL: unmanaged Codex Teams version invocation required a live surface")
+            print(f"exit={codex_version.returncode}")
+            print(f"stdout={codex_version.stdout.strip()}")
+            print(f"stderr={codex_version.stderr.strip()}")
             return 1
         if codex_log.exists():
             print("FAIL: Codex Teams version invocation started a real team")
