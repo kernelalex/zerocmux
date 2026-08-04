@@ -1912,7 +1912,7 @@ mod tests {
         assert!(matches!(
             &projection.patch.changes[1],
             ResourceChange::UpsertTab(tab)
-                if tab.content_id == ContentPublicId::Browser(browser_id.clone())
+                if tab.content_id == ContentPublicId::Browser(browser_id)
         ));
         surface.kill();
     }
