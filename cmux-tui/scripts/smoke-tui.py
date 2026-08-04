@@ -147,6 +147,25 @@ def wait_for_active_screen(predicate, seconds=15):
         drain(0.2)
         last = active_screen(tree()[0])
         if predicate(last):
+            # The model can advance before the next frame refreshes pointer hits.
+            drain(0.2)
+            return last
+    raise AssertionError(last)
+
+def send_input_until_active_screen(data, predicate, seconds=15, retry_interval=1):
+    deadline = time.time() + seconds
+    next_send = 0
+    last = None
+    while time.time() < deadline:
+        now = time.time()
+        if now >= next_send:
+            os.write(fd, data)
+            next_send = now + retry_interval
+        drain(0.2)
+        last = active_screen(tree()[0])
+        if predicate(last):
+            # Keep the next pointer gesture behind the refreshed hit map.
+            drain(0.2)
             return last
     raise AssertionError(last)
 
@@ -706,11 +725,13 @@ left_pane_id = left_pane["id"]
 right_pane_id = right_pane["id"]
 tab_order = [t["surface"] for t in left_pane["tabs"]]
 expected_reordered = [tab_order[2], tab_order[0], tab_order[1]]
-os.write(fd, b"\x1b[<0;41;1M\x1b[<32;24;1M\x1b[<0;24;1m")
 def tab_reordered_within_left_pane(screen):
     panes = {p["id"]: p for p in screen["panes"]}
     return [t["surface"] for t in panes[left_pane_id]["tabs"]] == expected_reordered
-screen0 = wait_for_active_screen(tab_reordered_within_left_pane)
+screen0 = send_input_until_active_screen(
+    b"\x1b[<0;41;1M\x1b[<32;24;1M\x1b[<0;24;1m",
+    tab_reordered_within_left_pane,
+)
 panes_by_id = {p["id"]: p for p in screen0["panes"]}
 left_pane = panes_by_id[left_pane_id]
 right_pane = panes_by_id[right_pane_id]
@@ -718,11 +739,13 @@ reordered = [t["surface"] for t in left_pane["tabs"]]
 assert reordered == expected_reordered, (tab_order, reordered, screen0)
 print("tab drag reorder within pane ok")
 
-os.write(fd, b"\x1b[<0;24;1M\x1b[<32;42;1M\x1b[<0;42;1m")
 def tab_moved_past_last_chip(screen):
     panes = {p["id"]: p for p in screen["panes"]}
     return [t["surface"] for t in panes[left_pane_id]["tabs"]] == tab_order
-screen0 = wait_for_active_screen(tab_moved_past_last_chip)
+screen0 = send_input_until_active_screen(
+    b"\x1b[<0;24;1M\x1b[<32;42;1M\x1b[<0;42;1m",
+    tab_moved_past_last_chip,
+)
 panes_by_id = {p["id"]: p for p in screen0["panes"]}
 left_pane = panes_by_id[left_pane_id]
 end_reordered = [t["surface"] for t in left_pane["tabs"]]
@@ -730,14 +753,16 @@ assert end_reordered == [tab_order[0], tab_order[1], tab_order[2]], (tab_order, 
 print("tab drag past last chip inserts at end ok")
 
 moving_surface = left_pane["tabs"][0]["surface"]
-os.write(fd, b"\x1b[<0;27;1M\x1b[<32;63;1M\x1b[<0;63;1m")
 def tab_crossed_panes(screen):
     panes = {p["id"]: p for p in screen["panes"]}
     return (
         moving_surface not in [t["surface"] for t in panes[left_pane_id]["tabs"]]
         and moving_surface in [t["surface"] for t in panes[right_pane_id]["tabs"]]
     )
-screen0 = wait_for_active_screen(tab_crossed_panes)
+screen0 = send_input_until_active_screen(
+    b"\x1b[<0;27;1M\x1b[<32;63;1M\x1b[<0;63;1m",
+    tab_crossed_panes,
+)
 panes_by_id = {p["id"]: p for p in screen0["panes"]}
 assert moving_surface not in [t["surface"] for t in panes_by_id[left_pane_id]["tabs"]], screen0
 assert moving_surface in [t["surface"] for t in panes_by_id[right_pane_id]["tabs"]], screen0
@@ -748,11 +773,13 @@ right_pane = panes_by_id[right_pane_id]
 content_surface = left_pane["tabs"][0]["surface"]
 right_before = [t["surface"] for t in right_pane["tabs"]]
 expected_right = right_before + [content_surface]
-os.write(fd, b"\x1b[<0;27;1M\x1b[<32;82;8M\x1b[<0;82;8m")
 def tab_appended_to_pane_content(screen):
     panes = {p["id"]: p for p in screen["panes"]}
     return [t["surface"] for t in panes[right_pane_id]["tabs"]] == expected_right
-screen0 = wait_for_active_screen(tab_appended_to_pane_content)
+screen0 = send_input_until_active_screen(
+    b"\x1b[<0;27;1M\x1b[<32;82;8M\x1b[<0;82;8m",
+    tab_appended_to_pane_content,
+)
 panes_by_id = {p["id"]: p for p in screen0["panes"]}
 right_after = [t["surface"] for t in panes_by_id[right_pane_id]["tabs"]]
 assert right_after == expected_right, (right_before, right_after, screen0)
