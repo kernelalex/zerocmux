@@ -17,6 +17,15 @@ const LARGE_RENDER_IMAGE_RAW_BYTES: usize =
     LARGE_RENDER_IMAGE_WIDTH * LARGE_RENDER_IMAGE_HEIGHT * 4;
 const LARGE_RENDER_IMAGE_BASE64_CHARS: usize = LARGE_RENDER_IMAGE_RAW_BYTES.div_ceil(3) * 4;
 
+fn test_timeout(timeout: Duration) -> Duration {
+    let scale = std::env::var("CMUX_TEST_TIMEOUT_SCALE")
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok())
+        .filter(|scale| *scale > 0)
+        .unwrap_or(1);
+    timeout.saturating_mul(scale)
+}
+
 fn large_rgba_kitty_transmission() -> Vec<u8> {
     let data =
         base64::engine::general_purpose::STANDARD.encode(vec![0x7f; LARGE_RENDER_IMAGE_RAW_BYTES]);
@@ -33,7 +42,7 @@ fn connect(addr: SocketAddr) -> WebSocket<TcpStream> {
 
 fn connect_raw(addr: SocketAddr) -> WebSocket<TcpStream> {
     let stream = TcpStream::connect(addr).unwrap();
-    stream.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+    stream.set_read_timeout(Some(test_timeout(Duration::from_secs(10)))).unwrap();
     client(format!("ws://{addr}/"), stream).unwrap().0
 }
 
@@ -219,7 +228,7 @@ fn websocket_pairing_is_approved_over_trusted_unix_and_credential_reconnects() {
         server::serve_websocket(mux.clone(), "127.0.0.1:0".parse().unwrap(), None, false).unwrap();
 
     let unix = transport::connect(&socket_path).unwrap();
-    unix.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+    unix.set_read_timeout(Some(test_timeout(Duration::from_secs(10)))).unwrap();
     let mut unix_writer = unix.try_clone_box().unwrap();
     let mut unix_reader = BufReader::new(unix);
     writeln!(unix_writer, r#"{{"id":1,"cmd":"subscribe"}}"#).unwrap();
@@ -435,7 +444,7 @@ fn clients_list_identify_resize_and_detach_across_transports() {
     .unwrap();
 
     let unix = transport::connect(&socket_path).unwrap();
-    unix.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+    unix.set_read_timeout(Some(test_timeout(Duration::from_secs(10)))).unwrap();
     let mut unix_writer = unix.try_clone_box().unwrap();
     let mut unix_reader = BufReader::new(unix);
     writeln!(unix_writer, r#"{{"id":1,"cmd":"subscribe"}}"#).unwrap();

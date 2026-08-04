@@ -8552,11 +8552,13 @@ impl Mux {
                 selection_resync,
             )
         };
-        drop(registry);
         if project_resource {
             self.publish_resource_event();
         }
+        // Keep publication inside the registry writer boundary so concurrent
+        // commits cannot emit a later workspace revision first.
         self.emit_tree_delta(delta, selection_resync);
+        drop(registry);
         Ok(placement)
     }
 
