@@ -10034,12 +10034,12 @@ mod tests {
         SurfaceOptions,
     };
     use ghostty_vt::{Callbacks, RenderState, Terminal};
-    use std::sync::mpsc::TryRecvError;
+    use std::sync::{MutexGuard, mpsc::TryRecvError};
     use std::time::Duration;
 
-    static RENDER_CLIENT_IMAGE_SCAN_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    static RENDER_CLIENT_IMAGE_SCAN_TEST_LOCK: Mutex<()> = Mutex::new(());
 
-    fn lock_render_client_image_scan_counter() -> std::sync::MutexGuard<'static, ()> {
+    fn lock_render_client_image_scan_counter() -> MutexGuard<'static, ()> {
         RENDER_CLIENT_IMAGE_SCAN_TEST_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
