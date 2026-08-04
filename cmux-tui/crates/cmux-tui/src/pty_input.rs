@@ -1974,7 +1974,15 @@ mod tests {
         assert!(dispatcher.shutdown(Duration::from_secs(1)));
         assert!(same_surface_rx.recv_timeout(Duration::from_millis(50)).is_err());
 
-        let failures = failure_rx.try_iter().collect::<Vec<_>>();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut failures = Vec::new();
+        while failures.len() < 2 && Instant::now() < deadline {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            match failure_rx.recv_timeout(remaining) {
+                Ok(failure) => failures.push(failure),
+                Err(_) => break,
+            }
+        }
         assert!(failures.iter().any(|failure| {
             failure.surface_id == Some(41)
                 && failure.label == "timed out surface operation"
