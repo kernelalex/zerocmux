@@ -853,7 +853,10 @@ jobs:
               CMUX_SKIP_ZIG_BUILD=1 \
               test 2>&1 &
             local xcodebuild_pid=$!
-            local timeout_seconds="${CMUX_UNIT_TEST_TIMEOUT_SECONDS:-900}"
+            # The balanced shard plan measures about 17.5 minutes of serial
+            # XCTest work. Leave enough headroom for Tartelet host variation
+            # while retaining a bounded timeout below the 75-minute job limit.
+            local timeout_seconds="${CMUX_UNIT_TEST_TIMEOUT_SECONDS:-1500}"
             local deadline=$((SECONDS + timeout_seconds))
             while kill -0 "$xcodebuild_pid" 2>/dev/null; do
               if [ "$SECONDS" -ge "$deadline" ]; then

@@ -61,7 +61,12 @@ extension CLINotifyProcessIntegrationRegressionTests {
         addr.sun_family = sa_family_t(AF_UNIX)
         let maxPathLength = MemoryLayout.size(ofValue: addr.sun_path)
         let utf8 = Array(path.utf8)
-        XCTAssertLessThan(utf8.count, maxPathLength)
+        guard utf8.count < maxPathLength else {
+            Darwin.close(fd)
+            throw NSError(domain: "cmux.tests", code: Int(ENAMETOOLONG), userInfo: [
+                NSLocalizedDescriptionKey: "UNIX socket path exceeds the Darwin limit: \(path)",
+            ])
+        }
         _ = withUnsafeMutablePointer(to: &addr.sun_path) { pointer in
             pointer.withMemoryRebound(to: CChar.self, capacity: maxPathLength) { buffer in
                 for index in 0..<utf8.count {
