@@ -61,7 +61,7 @@ jobs:
 
   terminal-nightly:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: macos-latest
+    runs-on: tart-small
     timeout-minutes: 30
     env:
       # XCTest app-host crashes can leave xcodebuild waiting in Swift's crash

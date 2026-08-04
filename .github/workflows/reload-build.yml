@@ -31,13 +31,13 @@ on:
           - macos
       runner:
         description: >-
-          macOS runner label to build on. Defaults to GitHub-hosted macOS 26;
-          the self-hosted fleet or Warp can still be selected explicitly.
-          This is the dev-build offload path (reload-cloud), not required CI, so
-          targeting the fleet for a build is intentional.
+          macOS runner label to build on. Builds use the ephemeral self-hosted
+          Tart pool.
         required: false
-        default: macos-latest
-        type: string
+        default: tart-small
+        type: choice
+        options:
+          - tart-small
       nonce:
         description: Opaque marker echoed into run-name so the dispatcher can find this run.
         required: false

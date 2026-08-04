@@ -680,14 +680,14 @@ def test_required_macos_topology_keeps_fork_display_job_and_collapsed_helper() -
     package_block = workflow_job_block("swift-package-tests")
     ui_block = workflow_job_block("ui-regressions")
 
-    assert "runs-on: macos-latest" in package_block
+    assert "runs-on: tart-small" in package_block
     assert "\n  release-ghostty-cli-helper:" not in workflow
     assert "Run display UI regressions" not in runtime_block
     assert "DisplayResolutionRegressionUITests" not in runtime_block
     assert 'kill -9 "$VDISPLAY_PID"' in runtime_block
     assert "scripts/ci/virtual-display-lock.sh reap-strays" in runtime_block
     assert runtime_block.rfind("scripts/ci/virtual-display-lock.sh reap-strays") < runtime_block.rfind("scripts/ci/virtual-display-lock.sh release")
-    assert "runs-on: macos-latest" in ui_block
+    assert "runs-on: tart-small" in ui_block
     assert "DisplayResolutionRegressionUITests" in ui_block
     assert "BrowserPaneNavigationKeybindUITests" in ui_block
     assert "timeout-minutes: 40" in package_block
@@ -727,11 +727,10 @@ def test_perf_activation_workflow_keeps_required_status_while_gating_benchmark()
     assert "needs: activation_changes" in benchmark
     assert "if: ${{ needs.activation_changes.outputs.macos == 'true' }}" in benchmark
     # RunsOn does not support macOS, so the benchmark's automatic route is the
-    # GitHub-hosted macOS 26 Apple Silicon image.
-    assert "'macos-latest'" in benchmark
+    # ephemeral self-hosted Tart pool.
+    assert "'tart-small'" in benchmark
     assert "vars.MACOS_RUNNER_15" not in benchmark
-    assert "if: ${{ runner.environment == 'self-hosted' }}" in benchmark
-    assert "if: ${{ runner.environment == 'github-hosted' }}" in benchmark
+    assert "runner.environment == 'github-hosted'" not in benchmark
 
     assert "      - activation_changes" in sentinel
     assert "      - activation-session-benchmark" in sentinel

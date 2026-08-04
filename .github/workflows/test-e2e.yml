@@ -1,5 +1,5 @@
 name: E2E test with video recording
-run-name: ${{ inputs.test_filter }} on ${{ (!inputs.runner || inputs.runner == 'auto') && 'macos-latest' || inputs.runner }} @ ${{ inputs.ref || github.ref_name }}
+run-name: ${{ inputs.test_filter }} on ${{ (!inputs.runner || inputs.runner == 'auto') && 'tart-small' || inputs.runner }} @ ${{ inputs.ref || github.ref_name }}
 
 on:
   workflow_dispatch:
@@ -25,45 +25,37 @@ on:
         default: true
         type: boolean
       runner:
-        description: "Runner OS (auto uses GitHub-hosted macOS 26; tart-* choices use isolated VMs)"
+        description: "Runner OS (auto uses the self-hosted Tart pool)"
         required: false
         default: "auto"
         type: choice
         options:
           - auto
-          - macos-latest
-          - warp-macos-15-arm64-6x
-          - tart-canary
-          - tart-dual
           - tart-small
 
 concurrency:
-  group: e2e-${{ (!inputs.runner || inputs.runner == 'auto') && 'macos-latest' || inputs.runner }}-${{ inputs.ref || github.ref_name }}-${{ inputs.test_filter }}
+  group: e2e-${{ (!inputs.runner || inputs.runner == 'auto') && 'tart-small' || inputs.runner }}-${{ inputs.ref || github.ref_name }}-${{ inputs.test_filter }}
   cancel-in-progress: true
 
 jobs:
   e2e:
-    runs-on: ${{ (!inputs.runner || inputs.runner == 'auto') && 'macos-latest' || inputs.runner }}
+    runs-on: ${{ (!inputs.runner || inputs.runner == 'auto') && 'tart-small' || inputs.runner }}
     timeout-minutes: ${{ fromJSON(inputs.job_timeout || '20') }}
     env:
       TEST_REF: ${{ inputs.ref || github.ref }}
     steps:
-      - name: Validate Tart canary identity
-        if: ${{ startsWith((!inputs.runner || inputs.runner == 'auto') && 'macos-latest' || inputs.runner, 'tart-') }}
+      - name: Validate Tart self-hosted routing
         env:
-          REQUESTED_RUNNER: ${{ (!inputs.runner || inputs.runner == 'auto') && 'macos-latest' || inputs.runner }}
-          RUNNER_CONTEXT_NAME: ${{ runner.name }}
+          REQUESTED_RUNNER: ${{ (!inputs.runner || inputs.runner == 'auto') && 'tart-small' || inputs.runner }}
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
         run: |
           set -euo pipefail
-          case "$RUNNER_CONTEXT_NAME" in
-            tart-cmux-*) ;;
-            *)
-              echo "::error::$REQUESTED_RUNNER resolved to unexpected runner $RUNNER_CONTEXT_NAME"
-              exit 1
-              ;;
-          esac
-          test -f /etc/cmux-tart-ci || {
-            echo "::error::$REQUESTED_RUNNER runner is missing the immutable VM identity marker"
+          test "$REQUESTED_RUNNER" = "tart-small" || {
+            echo "::error::unexpected macOS runner label: $REQUESTED_RUNNER"
+            exit 1
+          }
+          test "$RUNNER_ENVIRONMENT" = "self-hosted" || {
+            echo "::error::$REQUESTED_RUNNER did not resolve to a self-hosted runner"
             exit 1
           }
 
@@ -269,8 +261,8 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: .ci-source-packages
-          key: spm-${{ (!inputs.runner || inputs.runner == 'auto') && 'macos-latest' || inputs.runner }}-${{ hashFiles('cmux.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
-          restore-keys: spm-${{ (!inputs.runner || inputs.runner == 'auto') && 'macos-latest' || inputs.runner }}-
+          key: spm-${{ (!inputs.runner || inputs.runner == 'auto') && 'tart-small' || inputs.runner }}-${{ hashFiles('cmux.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: spm-${{ (!inputs.runner || inputs.runner == 'auto') && 'tart-small' || inputs.runner }}-
 
       - name: Sanitize Swift package cache
         run: python3 scripts/ci/sanitize-xcode-source-packages-cache.py .ci-source-packages

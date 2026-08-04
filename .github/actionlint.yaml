@@ -1,8 +1,6 @@
 self-hosted-runner:
   labels:
-    # Manual workflow_dispatch alternatives. Always-on Linux jobs use opaque
-    # RunsOn Flex labels and macOS jobs use GitHub-hosted macos-latest.
-    - warp-macos-15-arm64-6x
-    - tart-canary
-    - tart-dual
+    # Linux jobs use opaque RunsOn Flex labels. macOS jobs use the ephemeral
+    # Tart pool; release signing adds its dedicated capability label.
     - tart-small
+    - zerocmux-signing

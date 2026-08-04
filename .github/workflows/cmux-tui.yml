@@ -161,7 +161,7 @@ jobs:
 
   test:
     name: test (${{ matrix.os }})
-    runs-on: ${{ matrix.os == 'macos' && 'macos-latest' || format('runs-on={0}-cmux-tui-test-{1}/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco', github.run_id, matrix.os) }}
+    runs-on: ${{ matrix.os == 'macos' && 'tart-small' || format('runs-on={0}-cmux-tui-test-{1}/runner=4cpu-linux-x64/family=c7a+c7i+m7a+m7i/volume=100gb/spot=pco', github.run_id, matrix.os) }}
     timeout-minutes: 40
     strategy:
       fail-fast: false

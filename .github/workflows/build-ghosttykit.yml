@@ -15,7 +15,7 @@ env:
 
 jobs:
   build-ghosttykit:
-    runs-on: macos-latest
+    runs-on: tart-small
     timeout-minutes: 20
     steps:
       - name: Checkout

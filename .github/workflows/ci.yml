@@ -84,7 +84,7 @@ jobs:
             --head-sha "$HEAD_SHA"
 
   workflow-guard-tests:
-    runs-on: macos-latest
+    runs-on: tart-small
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -374,10 +374,9 @@ jobs:
     # linux-preflight itself succeeds. Require the direct needs explicitly.
     if: ${{ !cancelled() && needs.changes.result == 'success' && needs.linux-preflight.result == 'success' && needs.changes.outputs.macos == 'true' }}
     name: app-host unit tests (${{ matrix.shard }}/4)
-    # App-host XCTest needs a runner that can broker testmanagerd control
-    # sessions. Keep this lane on a clean, ephemeral GitHub-hosted Apple
-    # Silicon runner.
-    runs-on: macos-latest
+    # App-host XCTest needs a clean, ephemeral Tart VM with an Aqua session
+    # that can broker testmanagerd control sessions.
+    runs-on: tart-small
     timeout-minutes: 75
     strategy:
       fail-fast: false
@@ -1092,7 +1091,7 @@ jobs:
     # Xcode. The old dual-Xcode SDK-15 helper pin existed for zig 0.15.2's
     # MachO linker; zig 0.16 links against current SDKs, and the helper's
     # macOS support floor is asserted via LC_BUILD_VERSION minos below.
-    runs-on: macos-latest
+    runs-on: tart-small
     # A hung Remote* suite costs one 5-minute alarm + retry; leave headroom.
     timeout-minutes: 40
     env:
@@ -1407,8 +1406,8 @@ jobs:
     # Build the full zerocmux scheme and run the lag regression on macOS CI.
     # Keep lag validation separate from UI regressions so functional UI failures
     # and performance regressions stay isolated. Broader interactive UI suites
-    # still run via test-e2e.yml on GitHub-hosted runners.
-    runs-on: macos-latest
+    # still run via test-e2e.yml on isolated Tart runners.
+    runs-on: tart-small
     # A cold DerivedData cache (any project.pbxproj or Package.resolved change
     # mints a new cache key with no restore-keys fallback) forces a full
     # zerocmux build whose Swift codegen alone can run 20+ min. Project/package
@@ -1722,8 +1721,8 @@ jobs:
     # Keep the app build on macOS 26 so SDK-gated SwiftUI Liquid Glass code
     # compiles into the same artifact shape as nightly and stable releases.
     # Release builds need enough disk for a universal Release build plus the
-    # restored SwiftPM cache. Use a clean GitHub-hosted Apple Silicon runner.
-    runs-on: macos-latest
+    # restored SwiftPM cache. Use a clean, ephemeral Tart VM.
+    runs-on: tart-small
     timeout-minutes: 60
     env:
       CMUX_CI_XCODE_APP: ${{ vars.CMUX_CI_XCODE_APP_MACOS_26 }}
@@ -1880,7 +1879,7 @@ jobs:
   ui-regressions:
     needs: changes
     if: ${{ needs.changes.outputs.macos == 'true' }}
-    runs-on: macos-latest
+    runs-on: tart-small
     # Cold builds after project/package changes can spend more than 25 minutes
     # in build-for-testing before the UI regression script starts.
     timeout-minutes: 45

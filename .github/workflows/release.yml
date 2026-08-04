@@ -18,7 +18,7 @@ jobs:
   # links against current SDKs; the old SDK-15 pin was a zig 0.15.2 limit)
   # and installed into the app as a prebuilt artifact (mirrors ci.yml).
   build-ghostty-cli-helper:
-    runs-on: macos-latest
+    runs-on: tart-small
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -63,7 +63,7 @@ jobs:
 
   build-sign-notarize:
     needs: build-ghostty-cli-helper
-    runs-on: macos-latest
+    runs-on: [tart-small, zerocmux-signing]
     environment: release
     timeout-minutes: 120
     steps:
