@@ -71,11 +71,11 @@ public struct SSHForegroundAuthenticationRetryPolicy: Sendable {
     /// and force-killed. Process-group boundaries are recorded before TERM so a
     /// handler cannot escape by forking a replacement and exiting before the next
     /// scan. Every recursive grace check shares one two-second deadline. Once
-    /// that deadline expires, the remaining subtree is discovered from a small
-    /// number of whole-process-table snapshots, frozen in bounded passes, and
-    /// force-killed as one PID set. This avoids turning a single deadline into
-    /// per-descendant process-table and signal-command overhead while still
-    /// preventing deep descendants from being orphaned.
+    /// that deadline expires, the remaining subtree is frozen parent-first and
+    /// force-killed as one revalidated PID set. Parent-first freezing preserves
+    /// the no-new-descendants invariant, while shell-builtin signals and one
+    /// final whole-process-table snapshot avoid turning a single deadline into
+    /// per-descendant signal-command overhead.
     /// An isolated child process group is terminated as one unit before recursion.
     /// The caller supplies the authentication root's known wrapper PID so root
     /// validation is not inferred from a potentially reused candidate PID.
@@ -110,7 +110,7 @@ public struct SSHForegroundAuthenticationRetryPolicy: Sendable {
             set -- $cmux_ssh_auth_process_snapshot
             if [ "$#" -lt 2 ] || [ "$1" != "$cmux_ssh_auth_process_parent_pid" ]; then exit 1; fi
             case "$2" in *Z*) exit 1 ;; esac
-            /bin/kill -0 "$cmux_ssh_auth_process_pid" >/dev/null 2>&1
+            kill -0 "$cmux_ssh_auth_process_pid" >/dev/null 2>&1
           )
 
           cmux_ssh_auth_subtree_snapshot() (
@@ -151,40 +151,44 @@ public struct SSHForegroundAuthenticationRetryPolicy: Sendable {
                   '
           )
 
+          cmux_ssh_freeze_auth_process_tree() (
+            cmux_ssh_auth_tree_pid="$1"
+            cmux_ssh_auth_tree_parent_pid="$2"
+            if ! kill -STOP "$cmux_ssh_auth_tree_pid" >/dev/null 2>&1; then exit 0; fi
+            if ! cmux_ssh_auth_process_is_original "$cmux_ssh_auth_tree_pid" "$cmux_ssh_auth_tree_parent_pid"; then
+              kill -CONT "$cmux_ssh_auth_tree_pid" >/dev/null 2>&1 || true
+              exit 0
+            fi
+            printf '%s ' "$cmux_ssh_auth_tree_pid"
+            for cmux_ssh_auth_tree_child in $(/usr/bin/pgrep -P "$cmux_ssh_auth_tree_pid" . 2>/dev/null || true); do
+              cmux_ssh_freeze_auth_process_tree "$cmux_ssh_auth_tree_child" "$cmux_ssh_auth_tree_pid"
+            done
+          )
+
           cmux_ssh_force_kill_auth_process_tree() (
             cmux_ssh_auth_tree_pid="$1"
             cmux_ssh_auth_tree_parent_pid="$2"
             if ! cmux_ssh_auth_process_is_original "$cmux_ssh_auth_tree_pid" "$cmux_ssh_auth_tree_parent_pid"; then
               exit 0
             fi
-            if ! /bin/kill -STOP "$cmux_ssh_auth_tree_pid" >/dev/null 2>&1; then exit 0; fi
-            if ! cmux_ssh_auth_process_is_original "$cmux_ssh_auth_tree_pid" "$cmux_ssh_auth_tree_parent_pid"; then
-              /bin/kill -CONT "$cmux_ssh_auth_tree_pid" >/dev/null 2>&1 || true
-              exit 0
-            fi
+            cmux_ssh_auth_tree_frozen_pids=$(cmux_ssh_freeze_auth_process_tree \
+              "$cmux_ssh_auth_tree_pid" "$cmux_ssh_auth_tree_parent_pid")
 
-            # The root is stopped before the first snapshot. Freeze the whole
-            # discovered set twice: after the first pass, every process capable
-            # of spawning a late descendant is stopped, and the second snapshot
-            # catches anything created during that first freeze pass. A final
-            # snapshot both revalidates PID ancestry and supplies one batch kill.
-            cmux_ssh_auth_tree_freeze_pass=1
-            while [ "$cmux_ssh_auth_tree_freeze_pass" -le 2 ]; do
-              cmux_ssh_auth_tree_pids=$(cmux_ssh_auth_subtree_snapshot \
-                "$cmux_ssh_auth_tree_pid" "$cmux_ssh_auth_tree_parent_pid")
-              if [ -z "$cmux_ssh_auth_tree_pids" ]; then
-                /bin/kill -CONT "$cmux_ssh_auth_tree_pid" >/dev/null 2>&1 || true
-                exit 0
-              fi
-              /bin/kill -STOP $cmux_ssh_auth_tree_pids >/dev/null 2>&1 || true
-              cmux_ssh_auth_tree_freeze_pass=$((cmux_ssh_auth_tree_freeze_pass + 1))
-            done
-
+            # Every parent was stopped before its children were enumerated, so
+            # this final snapshot is a closed subtree. It revalidates the root
+            # identity and every descendant's live ancestry immediately before
+            # the one batch kill.
             cmux_ssh_auth_tree_pids=$(cmux_ssh_auth_subtree_snapshot \
               "$cmux_ssh_auth_tree_pid" "$cmux_ssh_auth_tree_parent_pid")
             if [ -n "$cmux_ssh_auth_tree_pids" ]; then
               /bin/kill -KILL $cmux_ssh_auth_tree_pids >/dev/null 2>&1 || true
-              /bin/kill -CONT $cmux_ssh_auth_tree_pids >/dev/null 2>&1 || true
+            fi
+            # If an external actor removed the root between freezing and the
+            # final snapshot, its stopped descendants are no longer reachable
+            # through root ancestry. Resume the complete set that this helper
+            # actually froze so that abnormal interference cannot strand them.
+            if [ -n "$cmux_ssh_auth_tree_frozen_pids" ]; then
+              /bin/kill -CONT $cmux_ssh_auth_tree_frozen_pids >/dev/null 2>&1 || true
             else
               /bin/kill -CONT "$cmux_ssh_auth_tree_pid" >/dev/null 2>&1 || true
             fi
