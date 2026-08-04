@@ -1573,8 +1573,14 @@ fn browser_tab_creation_is_async_and_surfaces_bootstrap_failure() {
     let surface = mux
         .new_browser_tab("example.test".to_string(), None, Some((10, 5)))
         .expect("tab insertion should not wait for CDP bootstrap");
+    let timeout_scale = std::env::var("CMUX_TEST_TIMEOUT_SCALE")
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok())
+        .filter(|scale| *scale > 0)
+        .unwrap_or(1);
+    let async_creation_budget = Duration::from_millis(500).saturating_mul(timeout_scale);
     assert!(
-        started.elapsed() < Duration::from_millis(500),
+        started.elapsed() < async_creation_budget,
         "new_browser_tab blocked for {:?}",
         started.elapsed()
     );

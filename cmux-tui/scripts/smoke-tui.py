@@ -150,6 +150,16 @@ def wait_for_active_screen(predicate, seconds=15):
             return last
     raise AssertionError(last)
 
+def wait_for_workspaces(predicate, seconds=15):
+    deadline = time.time() + seconds
+    last = None
+    while time.time() < deadline:
+        drain(0.2)
+        last = tree()
+        if predicate(last):
+            return last
+    raise AssertionError(last)
+
 def send_prefix_t_until_tab_count(count):
     last = None
     for _ in range(5):
@@ -692,29 +702,34 @@ print("alt-n smart split ok")
 
 left_pane = panes[0]
 right_pane = panes[1]
+left_pane_id = left_pane["id"]
+right_pane_id = right_pane["id"]
 tab_order = [t["surface"] for t in left_pane["tabs"]]
+expected_reordered = [tab_order[2], tab_order[0], tab_order[1]]
 os.write(fd, b"\x1b[<0;41;1M\x1b[<32;24;1M\x1b[<0;24;1m")
-drain(1.0)
-screen0 = active_screen(tree()[0])
+def tab_reordered_within_left_pane(screen):
+    panes = {p["id"]: p for p in screen["panes"]}
+    return [t["surface"] for t in panes[left_pane_id]["tabs"]] == expected_reordered
+screen0 = wait_for_active_screen(tab_reordered_within_left_pane)
 panes_by_id = {p["id"]: p for p in screen0["panes"]}
-left_pane = panes_by_id[left_pane["id"]]
-right_pane = panes_by_id[right_pane["id"]]
+left_pane = panes_by_id[left_pane_id]
+right_pane = panes_by_id[right_pane_id]
 reordered = [t["surface"] for t in left_pane["tabs"]]
-assert reordered == [tab_order[2], tab_order[0], tab_order[1]], (tab_order, reordered, screen0)
+assert reordered == expected_reordered, (tab_order, reordered, screen0)
 print("tab drag reorder within pane ok")
 
 os.write(fd, b"\x1b[<0;24;1M\x1b[<32;42;1M\x1b[<0;42;1m")
-drain(1.0)
-screen0 = active_screen(tree()[0])
+def tab_moved_past_last_chip(screen):
+    panes = {p["id"]: p for p in screen["panes"]}
+    return [t["surface"] for t in panes[left_pane_id]["tabs"]] == tab_order
+screen0 = wait_for_active_screen(tab_moved_past_last_chip)
 panes_by_id = {p["id"]: p for p in screen0["panes"]}
-left_pane = panes_by_id[left_pane["id"]]
+left_pane = panes_by_id[left_pane_id]
 end_reordered = [t["surface"] for t in left_pane["tabs"]]
 assert end_reordered == [tab_order[0], tab_order[1], tab_order[2]], (tab_order, end_reordered, screen0)
 print("tab drag past last chip inserts at end ok")
 
 moving_surface = left_pane["tabs"][0]["surface"]
-left_pane_id = left_pane["id"]
-right_pane_id = right_pane["id"]
 os.write(fd, b"\x1b[<0;27;1M\x1b[<32;63;1M\x1b[<0;63;1m")
 def tab_crossed_panes(screen):
     panes = {p["id"]: p for p in screen["panes"]}
@@ -802,8 +817,11 @@ print("sidebar rendered ok")
 
 # Prefix-W: create a second workspace; it becomes active.
 os.write(fd, b"\x02W")
-drain(1.0)
-workspaces = tree()
+workspaces = wait_for_workspaces(
+    lambda current: len(current) == 2
+    and current[1]["active"]
+    and current[1]["name"] == "1"
+)
 assert len(workspaces) == 2, workspaces
 assert workspaces[1]["active"], workspaces
 assert workspaces[1]["name"] == "1", workspaces
@@ -814,15 +832,19 @@ print("prefix-W new workspace ok")
 # (SGR mouse coordinates are 1-based).
 original_ws = ws_id
 os.write(fd, b"\x1b[<0;2;3M\x1b[<32;2;7M\x1b[<0;2;7m")
-drain(1.0)
-workspaces = tree()
+workspaces = wait_for_workspaces(
+    lambda current: len(current) == 2 and current[-1]["id"] == original_ws
+)
 assert [w["id"] for w in workspaces] == [w["id"] for w in workspaces if w["id"] != original_ws] + [original_ws], workspaces
 print("sidebar workspace drag reorder ok")
 
 # Click the moved original workspace's sidebar entry.
 os.write(fd, b"\x1b[<0;2;6M\x1b[<0;2;6m")
-drain(1.0)
-workspaces = tree()
+workspaces = wait_for_workspaces(
+    lambda current: len(current) > 1
+    and current[1]["active"]
+    and current[1]["id"] == original_ws
+)
 assert workspaces[1]["active"] and workspaces[1]["id"] == original_ws, workspaces
 print("sidebar click switches workspace ok")
 
