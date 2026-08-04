@@ -179,6 +179,23 @@ def wait_for_workspaces(predicate, seconds=15):
             return last
     raise AssertionError(last)
 
+def send_input_until_workspaces(data, predicate, seconds=15, retry_interval=1):
+    deadline = time.time() + seconds
+    next_send = 0
+    last = None
+    while time.time() < deadline:
+        now = time.time()
+        if now >= next_send:
+            os.write(fd, data)
+            next_send = now + retry_interval
+        drain(0.2)
+        last = tree()
+        if predicate(last):
+            # Keep the next sidebar gesture behind the refreshed hit map.
+            drain(0.2)
+            return last
+    raise AssertionError(last)
+
 def send_prefix_t_until_tab_count(count):
     last = None
     for _ in range(5):
@@ -858,16 +875,16 @@ print("prefix-W new workspace ok")
 # row 1 blank, rows 2-3 workspace 1, row 4 blank, rows 5-6 workspace 2
 # (SGR mouse coordinates are 1-based).
 original_ws = ws_id
-os.write(fd, b"\x1b[<0;2;3M\x1b[<32;2;7M\x1b[<0;2;7m")
-workspaces = wait_for_workspaces(
+workspaces = send_input_until_workspaces(
+    b"\x1b[<0;2;3M\x1b[<32;2;7M\x1b[<0;2;7m",
     lambda current: len(current) == 2 and current[-1]["id"] == original_ws
 )
 assert [w["id"] for w in workspaces] == [w["id"] for w in workspaces if w["id"] != original_ws] + [original_ws], workspaces
 print("sidebar workspace drag reorder ok")
 
 # Click the moved original workspace's sidebar entry.
-os.write(fd, b"\x1b[<0;2;6M\x1b[<0;2;6m")
-workspaces = wait_for_workspaces(
+workspaces = send_input_until_workspaces(
+    b"\x1b[<0;2;6M\x1b[<0;2;6m",
     lambda current: len(current) > 1
     and current[1]["active"]
     and current[1]["id"] == original_ws
