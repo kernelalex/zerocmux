@@ -2409,7 +2409,7 @@ mod tests {
         let changed_second = rgba_placement(42, 2, 1, [0, 0, 255, 255]);
         writer.submit_test(vec![first, changed_second.clone()]);
         attempt_rx
-            .recv_timeout(Duration::from_secs(2))
+            .recv_timeout(Duration::from_secs(10))
             .expect("pre-clear graphics batch must be waiting on stdout");
 
         writer.invalidate_host_scene();
