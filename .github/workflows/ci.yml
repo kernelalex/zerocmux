@@ -157,6 +157,9 @@ jobs:
       - name: Validate app-host xcodebuild attempt budget
         run: ./tests/test_ci_app_host_xcodebuild_attempts.sh
 
+      - name: Validate app-host Swift test count guard
+        run: ./tests/test_ci_app_host_xcodebuild_test_count.sh
+
       - name: Validate zerocmux profiling support scripts
         run: ./tests/test_start_cmux_profiling.sh
 

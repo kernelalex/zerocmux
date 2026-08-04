@@ -268,14 +268,7 @@ def main() -> int:
         "-only-testing:cmuxTests/BrowserSessionHistoryRestoreTests": [],
     }
     cli_suite_selector = "-only-testing:cmuxTests/CMUXCLIErrorOutputRegressionTests"
-    cli_focused_skips = {
-        "-skip-testing:cmuxTests/CMUXCLIErrorOutputRegressionTests/"
-        "testBareInteractiveThemesReloadsRunningAppAfterPickerExits",
-        "-skip-testing:cmuxTests/CMUXCLIErrorOutputRegressionTests/"
-        "testThemesSetReloadsRunningAppAfterEveryThemeWrite",
-        "-skip-testing:cmuxTests/CMUXCLIErrorOutputRegressionTests/"
-        "testThemesSetTargetsResolvedTaggedSocketWhenBundleEnvironmentIsStale",
-    }
+    cli_focused_skip_prefix = "-skip-testing:cmuxTests/CMUXCLIErrorOutputRegressionTests/"
     cli_suite_shards: list[int] = []
     with tempfile.TemporaryDirectory() as tmp:
         output = Path(tmp) / "repo-shard.args"
@@ -306,6 +299,7 @@ def main() -> int:
             for focused_selector in (
                 "-only-testing:cmuxTests/BrowserSystemProxyMirrorTests",
                 "-only-testing:cmuxTests/CLISSHSessionAttachAnchorTests",
+                "-only-testing:cmuxTests/CMUXCLIThemeReloadRegressionTests",
                 "-only-testing:cmuxTests/GhosttyOptionAsAltModsTests",
                 "-only-testing:cmuxTests/RemoteTmuxMirrorLayoutIdentityTests",
                 "-only-testing:cmuxTests/SocketACLReloadRegressionTests",
@@ -315,15 +309,16 @@ def main() -> int:
                     return 1
             if cli_suite_selector in shard_selectors:
                 cli_suite_shards.append(shard)
-                missing_skips = cli_focused_skips - set(shard_selectors)
-                if missing_skips:
-                    print(
-                        "FAIL: broad CLI suite must skip its focused theme reload methods: "
-                        f"{sorted(missing_skips)}"
-                    )
-                    return 1
-            elif cli_focused_skips & set(shard_selectors):
-                print(f"FAIL: focused CLI skips appeared without their suite in shard {shard}")
+            focused_cli_skips = [
+                selector
+                for selector in shard_selectors
+                if selector.startswith(cli_focused_skip_prefix)
+            ]
+            if focused_cli_skips:
+                print(
+                    "FAIL: broad CLI suite must not rely on unsupported Swift Testing method skips: "
+                    f"{focused_cli_skips}"
+                )
                 return 1
             for separated_selector, placements in repo_separated_placement.items():
                 if separated_selector in shard_selectors:
