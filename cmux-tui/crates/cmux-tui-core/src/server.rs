@@ -10037,6 +10037,12 @@ mod tests {
     use std::sync::mpsc::TryRecvError;
     use std::time::Duration;
 
+    static RENDER_CLIENT_IMAGE_SCAN_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn lock_render_client_image_scan_counter() -> std::sync::MutexGuard<'static, ()> {
+        RENDER_CLIENT_IMAGE_SCAN_TEST_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
     #[test]
     fn default_socket_path_preserves_compatible_runtime_dir() {
         let runtime_dir = PathBuf::from("/tmp/cmux-tui-compat");
@@ -10516,6 +10522,7 @@ mod tests {
 
     #[test]
     fn pixel_only_render_delta_does_not_rescan_the_full_graphics_scene() {
+        let _scan_guard = lock_render_client_image_scan_counter();
         let mut terminal = Terminal::new(10, 3, 0, Callbacks::default()).unwrap();
         terminal.vt_write(RED_IMAGE_41);
         terminal.vt_write(GREEN_IMAGE_42);
@@ -10548,6 +10555,7 @@ mod tests {
 
     #[test]
     fn render_client_that_skips_a_graphics_frame_falls_back_to_one_linear_diff() {
+        let _scan_guard = lock_render_client_image_scan_counter();
         let mut terminal = Terminal::new(10, 3, 0, Callbacks::default()).unwrap();
         terminal.vt_write(RED_IMAGE_41);
         terminal.vt_write(GREEN_IMAGE_42);
