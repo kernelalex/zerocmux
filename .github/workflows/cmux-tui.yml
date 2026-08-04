@@ -158,6 +158,8 @@ jobs:
           while IFS= read -r bin; do
             [ -n "$bin" ] || continue
             echo "Running valgrind for $bin"
+            # Valgrind serializes guest execution; a parallel Rust harness can
+            # otherwise starve socket/event worker threads past their deadlines.
             if ! valgrind \
               --error-exitcode=1 \
               --leak-check=full \
@@ -165,7 +167,7 @@ jobs:
               --errors-for-leak-kinds=definite \
               --track-origins=yes \
               --suppressions=ci/valgrind.supp \
-              -- "$bin"; then
+              -- "$bin" --test-threads=1; then
               echo "Valgrind failed for $bin" >&2
               exit 1
             fi
