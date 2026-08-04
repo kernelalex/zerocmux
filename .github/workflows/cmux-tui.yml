@@ -216,7 +216,9 @@ jobs:
 
       - name: crossterm parser tests
         working-directory: cmux-tui
-        run: cargo test --manifest-path vendor/crossterm/Cargo.toml --lib
+        # Crossterm's vendored color tests mutate process-global NO_COLOR and
+        # its memoized color flag, so the library suite is not parallel-safe.
+        run: cargo test --manifest-path vendor/crossterm/Cargo.toml --lib -- --test-threads=1
 
       - name: TUI smoke test (scripted pty)
         working-directory: cmux-tui

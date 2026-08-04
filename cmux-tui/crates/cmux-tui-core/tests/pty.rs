@@ -908,7 +908,8 @@ fn control_socket_attach_palette_is_full_sparse_state_and_reset_clears_all_256()
 
 #[test]
 fn control_socket_broadcasts_surface_resized_once_per_changed_size() {
-    let mux = Mux::new(unique_session("test-resize-event"), shell_opts("sleep 30"));
+    // Keep the fixture alive beyond the instrumentation-scaled event window.
+    let mux = Mux::new(unique_session("test-resize-event"), shell_opts("sleep 120"));
     let surface = mux.new_workspace(None, Some((80, 24))).unwrap();
 
     let sock_path = cmux_tui_core::server::serve(mux.clone(), None).unwrap();
@@ -946,7 +947,7 @@ fn control_socket_broadcasts_surface_resized_once_per_changed_size() {
             }
             None
         },
-        Duration::from_secs(5),
+        Duration::from_secs(10),
     )
     .expect("no surface-resized event");
     assert_eq!(event["surface"], surface.id);
