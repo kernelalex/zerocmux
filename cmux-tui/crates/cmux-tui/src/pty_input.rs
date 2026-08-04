@@ -1976,11 +1976,24 @@ mod tests {
 
         let deadline = Instant::now() + Duration::from_secs(5);
         let mut failures = Vec::new();
-        while failures.len() < 2 && Instant::now() < deadline {
+        while Instant::now() < deadline {
             let remaining = deadline.saturating_duration_since(Instant::now());
             match failure_rx.recv_timeout(remaining) {
                 Ok(failure) => failures.push(failure),
                 Err(_) => break,
+            }
+            let saw_operation_timeout = failures.iter().any(|failure| {
+                failure.surface_id == Some(41)
+                    && failure.label == "timed out surface operation"
+                    && failure.delivery == PtyOperationDelivery::Ambiguous
+            });
+            let saw_pruned_input = failures.iter().any(|failure| {
+                failure.surface_id == Some(41)
+                    && failure.label == "PTY input"
+                    && failure.delivery == PtyOperationDelivery::KnownNotDelivered
+            });
+            if saw_operation_timeout && saw_pruned_input {
+                break;
             }
         }
         assert!(failures.iter().any(|failure| {
