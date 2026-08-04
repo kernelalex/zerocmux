@@ -388,10 +388,7 @@ jobs:
             GUI_USER="$(stat -f %Su /dev/console 2>/dev/null || true)"
             if [ -n "$GUI_USER" ] && [ "$GUI_USER" != "root" ] && GUI_UID="$(id -u "$GUI_USER" 2>/dev/null)"; then
               echo "Console GUI user: $GUI_USER ($GUI_UID); current user: $CURRENT_USER"
-              if command -v automationmodetool >/dev/null 2>&1; then
-                sudo -n automationmodetool enable-automationmode-without-authentication \
-                  || echo "::warning::Could not enable Automation Mode"
-              fi
+              scripts/ci/enable-xctest-automation-mode.sh
 
               if sudo -n true 2>/dev/null; then
                 RUN_XCODEBUILD=(

@@ -502,17 +502,7 @@ jobs:
           xcrun xctest "$DERIVED_DATA_PATH/Build/Products/Debug/CmuxTerminalCoreTests.xctest"
 
       - name: Enable XCTest automation mode
-        run: |
-          set -euo pipefail
-          if ! command -v automationmodetool >/dev/null 2>&1; then
-            echo "::warning::automationmodetool is unavailable; XCTest will use its default automation-mode setup"
-            exit 0
-          fi
-          if sudo -n true 2>/dev/null; then
-            sudo -n automationmodetool enable-automationmode-without-authentication
-          else
-            echo "::warning::Passwordless sudo unavailable; XCTest will use its default automation-mode setup"
-          fi
+        run: scripts/ci/enable-xctest-automation-mode.sh
 
       - name: Run agent chat transcript lifecycle regressions
         if: ${{ matrix.shard == fromJSON(env.CMUX_APP_HOST_FOCUSED_REGRESSION_SHARD) }}
@@ -1983,18 +1973,7 @@ jobs:
             build-for-testing
 
       - name: Enable XCTest automation mode
-        run: |
-          set -euo pipefail
-          if ! command -v automationmodetool >/dev/null 2>&1; then
-            echo "::warning::automationmodetool is unavailable; XCTest will use its default automation-mode setup"
-            exit 0
-          fi
-
-          if sudo -n true 2>/dev/null; then
-            sudo -n automationmodetool enable-automationmode-without-authentication
-          else
-            echo "::warning::Passwordless sudo unavailable; XCTest will use its default automation-mode setup"
-          fi
+        run: scripts/ci/enable-xctest-automation-mode.sh
 
       - name: Run display resolution churn UI regression
         run: |
