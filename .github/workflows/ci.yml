@@ -802,16 +802,13 @@ jobs:
             -only-testing:cmuxTests/SocketACLReloadRegressionTests \
             test
 
-      - name: Run CLI process-global state regressions
+      - name: Run CLI theme reload regressions
         if: ${{ matrix.shard == fromJSON(env.CMUX_APP_HOST_FOCUSED_REGRESSION_SHARD) }}
         run: |
-          # These serialized tests still share process-global environment,
-          # distributed notifications, and Unix-socket discovery with suites
-          # outside their own suite. CI #128 proved the focused socket suite
-          # passes alone while both suites fail when the broad Swift Testing
-          # run overlaps them with other app-host work. Keep the complete CLI
-          # suite in its own non-tolerant process and exclude its duplicate
-          # broad-shard execution in cmux_unit_test_shard.py.
+          # These tests observe cross-process distributed notifications. Run
+          # them non-tolerantly in an isolated host so unrelated app-host work
+          # cannot satisfy or starve their expectations. The broad shard keeps
+          # the rest of the CLI suite and skips only these exact methods.
           set -euo pipefail
           SOURCE_PACKAGES_DIR="$PWD/.ci-source-packages"
           scripts/ci/run-in-console-session.sh \
@@ -822,7 +819,9 @@ jobs:
             -disableAutomaticPackageResolution \
             -destination "platform=macOS" \
             CMUX_SKIP_ZIG_BUILD=1 \
-            -only-testing:cmuxTests/CMUXCLIErrorOutputRegressionTests \
+            -only-testing:cmuxTests/CMUXCLIErrorOutputRegressionTests/testBareInteractiveThemesReloadsRunningAppAfterPickerExits \
+            -only-testing:cmuxTests/CMUXCLIErrorOutputRegressionTests/testThemesSetReloadsRunningAppAfterEveryThemeWrite \
+            -only-testing:cmuxTests/CMUXCLIErrorOutputRegressionTests/testThemesSetTargetsResolvedTaggedSocketWhenBundleEnvironmentIsStale \
             test
 
       - name: Run notification scroll restoration regression

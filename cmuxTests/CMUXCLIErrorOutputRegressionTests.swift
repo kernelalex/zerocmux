@@ -1698,7 +1698,7 @@ import Testing
         let notificationLock = NSLock()
         var observedReloads: [(bundleIdentifier: String?, phase: String?)] = []
         let observer = DistributedNotificationCenter.default().addObserver(
-            forName: Notification.Name("com.cmuxterm.themes.reload-config"),
+            forName: Notification.Name("com.kernelalex.zerocmux.themes.reload-config"),
             object: nil,
             queue: notificationQueue
         ) { notification in
@@ -1781,7 +1781,7 @@ import Testing
         let notificationLock = NSLock()
         var observedReloads: [(bundleIdentifier: String?, phase: String?, socketPath: String?)] = []
         let observer = DistributedNotificationCenter.default().addObserver(
-            forName: Notification.Name("com.cmuxterm.themes.reload-config"),
+            forName: Notification.Name("com.kernelalex.zerocmux.themes.reload-config"),
             object: nil,
             queue: notificationQueue
         ) { notification in
@@ -1941,7 +1941,7 @@ import Testing
         let notificationLock = NSLock()
         var observedReloads: [(bundleIdentifier: String?, phase: String?)] = []
         let observer = DistributedNotificationCenter.default().addObserver(
-            forName: Notification.Name("com.cmuxterm.themes.reload-config"),
+            forName: Notification.Name("com.kernelalex.zerocmux.themes.reload-config"),
             object: nil,
             queue: notificationQueue
         ) { notification in
