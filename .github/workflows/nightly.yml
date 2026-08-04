@@ -95,7 +95,7 @@ jobs:
   build-sign-notarize-nightly:
     needs: decide
     if: needs.decide.outputs.should_build == 'true'
-    runs-on: tart-small
+    runs-on: tartelet
     timeout-minutes: 20
     steps:
       - name: Checkout build ref

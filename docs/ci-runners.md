@@ -2,7 +2,7 @@
 
 Always-on Linux CI runs on RunsOn Flex instances launched in the project's AWS
 account. macOS CI runs in ephemeral self-hosted Tart VMs selected by the
-`tart-small` label because RunsOn does not support macOS. The experimental
+`tartelet` label because RunsOn does not support macOS. The experimental
 Windows lane remains on GitHub-hosted `windows-latest`.
 
 ## RunsOn Flex configuration
@@ -42,23 +42,23 @@ multiple RunsOn stacks listen to this repository, add an explicit `region=` or
 
 ## macOS lanes
 
-Every macOS workflow routes to `tart-small`. The label belongs only to the
-ephemeral Tart pool and is intentionally used without GitHub's default
-`self-hosted`, `macOS`, or `ARM64` labels because the pool registers clones
-with custom labels only. Each job receives a fresh VM; the compatibility lane
+Every macOS workflow routes to `tartelet`. The label identifies the ephemeral
+Tartelet pool and is intentionally sufficient on its own; the runners also
+advertise GitHub's default `self-hosted`, `macOS`, and `ARM64` labels. Each job
+receives a fresh VM; the compatibility lane
 checks ARM64 while Xcode selection enforces the required toolchain and SDK.
 
 The release signing job additionally requests `zerocmux-signing`. Tart release
 workers must register both labels or protected tag releases will remain queued.
 
 `perf-activation.yml` and `test-e2e.yml` default their `auto` choice to
-`tart-small`; their manual choices no longer expose cloud macOS providers.
-`reload-build.yml` also restricts its runner input to `tart-small`.
+`tartelet`; their manual choices no longer expose cloud macOS providers.
+`reload-build.yml` also restricts its runner input to `tartelet`.
 
 ## Policy checks
 
 `tests/test_ci_self_hosted_guard.sh` rejects legacy provider labels in workflows,
-pins every macOS lane to `tart-small`, preserves the release signing capability
+pins every macOS lane to `tartelet`, preserves the release signing capability
 label, and rejects OTEL in RunsOn labels. `tests/test_ci_release_sdk_lane.sh`
 keeps the release helper and SDK build lanes on the same Tart pool.
 

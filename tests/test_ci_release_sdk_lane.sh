@@ -32,7 +32,7 @@ require_job_contains() {
 require_job_contains \
   "$RELEASE_FILE" \
   "build-ghostty-cli-helper" \
-  'runs-on: tart-small' \
+  'runs-on: tartelet' \
   "release must build the real Ghostty CLI helper on Tart self-hosted arm64"
 
 require_job_contains \
@@ -44,7 +44,7 @@ require_job_contains \
 require_job_contains \
   "$CI_FILE" \
   "release-build" \
-  'runs-on: tart-small' \
+  'runs-on: tartelet' \
   "CI release-build must compile the app on Tart self-hosted arm64"
 
 for workflow in "$CI_FILE" "$RELEASE_FILE"; do
@@ -70,7 +70,7 @@ if ! grep -Fq "actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef35013
 fi
 
 swift_package_section="$(job_section "$CI_FILE" "swift-package-tests")"
-if [[ "$swift_package_section" != *'runs-on: tart-small'* ]]; then
+if [[ "$swift_package_section" != *'runs-on: tartelet'* ]]; then
   echo "FAIL: CI swift-package-tests must run on Tart self-hosted arm64" >&2
   exit 1
 fi

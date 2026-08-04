@@ -1,5 +1,5 @@
 name: E2E test with video recording
-run-name: ${{ inputs.test_filter }} on ${{ (!inputs.runner || inputs.runner == 'auto') && 'tart-small' || inputs.runner }} @ ${{ inputs.ref || github.ref_name }}
+run-name: ${{ inputs.test_filter }} on ${{ (!inputs.runner || inputs.runner == 'auto') && 'tartelet' || inputs.runner }} @ ${{ inputs.ref || github.ref_name }}
 
 on:
   workflow_dispatch:
@@ -31,26 +31,26 @@ on:
         type: choice
         options:
           - auto
-          - tart-small
+          - tartelet
 
 concurrency:
-  group: e2e-${{ (!inputs.runner || inputs.runner == 'auto') && 'tart-small' || inputs.runner }}-${{ inputs.ref || github.ref_name }}-${{ inputs.test_filter }}
+  group: e2e-${{ (!inputs.runner || inputs.runner == 'auto') && 'tartelet' || inputs.runner }}-${{ inputs.ref || github.ref_name }}-${{ inputs.test_filter }}
   cancel-in-progress: true
 
 jobs:
   e2e:
-    runs-on: ${{ (!inputs.runner || inputs.runner == 'auto') && 'tart-small' || inputs.runner }}
+    runs-on: ${{ (!inputs.runner || inputs.runner == 'auto') && 'tartelet' || inputs.runner }}
     timeout-minutes: ${{ fromJSON(inputs.job_timeout || '20') }}
     env:
       TEST_REF: ${{ inputs.ref || github.ref }}
     steps:
       - name: Validate Tart self-hosted routing
         env:
-          REQUESTED_RUNNER: ${{ (!inputs.runner || inputs.runner == 'auto') && 'tart-small' || inputs.runner }}
+          REQUESTED_RUNNER: ${{ (!inputs.runner || inputs.runner == 'auto') && 'tartelet' || inputs.runner }}
           RUNNER_ENVIRONMENT: ${{ runner.environment }}
         run: |
           set -euo pipefail
-          test "$REQUESTED_RUNNER" = "tart-small" || {
+          test "$REQUESTED_RUNNER" = "tartelet" || {
             echo "::error::unexpected macOS runner label: $REQUESTED_RUNNER"
             exit 1
           }
@@ -261,8 +261,8 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: .ci-source-packages
-          key: spm-${{ (!inputs.runner || inputs.runner == 'auto') && 'tart-small' || inputs.runner }}-${{ hashFiles('cmux.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
-          restore-keys: spm-${{ (!inputs.runner || inputs.runner == 'auto') && 'tart-small' || inputs.runner }}-
+          key: spm-${{ (!inputs.runner || inputs.runner == 'auto') && 'tartelet' || inputs.runner }}-${{ hashFiles('cmux.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: spm-${{ (!inputs.runner || inputs.runner == 'auto') && 'tartelet' || inputs.runner }}-
 
       - name: Sanitize Swift package cache
         run: python3 scripts/ci/sanitize-xcode-source-packages-cache.py .ci-source-packages

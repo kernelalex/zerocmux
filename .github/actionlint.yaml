@@ -2,5 +2,5 @@ self-hosted-runner:
   labels:
     # Linux jobs use opaque RunsOn Flex labels. macOS jobs use the ephemeral
     # Tart pool; release signing adds its dedicated capability label.
-    - tart-small
+    - tartelet
     - zerocmux-signing

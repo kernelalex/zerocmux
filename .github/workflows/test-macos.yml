@@ -28,7 +28,7 @@ on:
 
 jobs:
   tests:
-    runs-on: tart-small
+    runs-on: tartelet
     timeout-minutes: 20
     steps:
       - name: Checkout

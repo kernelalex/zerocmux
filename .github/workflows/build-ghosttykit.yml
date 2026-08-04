@@ -15,7 +15,7 @@ env:
 
 jobs:
   build-ghosttykit:
-    runs-on: tart-small
+    runs-on: tartelet
     timeout-minutes: 20
     steps:
       - name: Checkout

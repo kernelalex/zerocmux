@@ -15,7 +15,7 @@ on:
         type: choice
         options:
           - auto
-          - tart-small
+          - tartelet
       workspace_count:
         description: Fixture workspace count
         required: false
@@ -104,7 +104,7 @@ jobs:
   activation-session-benchmark:
     needs: activation_changes
     if: ${{ needs.activation_changes.outputs.macos == 'true' }}
-    runs-on: ${{ ((!inputs.runner || inputs.runner == 'auto') && 'tart-small' || inputs.runner) }}
+    runs-on: ${{ ((!inputs.runner || inputs.runner == 'auto') && 'tartelet' || inputs.runner) }}
     timeout-minutes: 45
     env:
       PERF_TAG: perf-${{ github.run_id }}-${{ github.run_attempt }}
@@ -153,8 +153,8 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: .ci-source-packages
-          key: spm-${{ ((!inputs.runner || inputs.runner == 'auto') && 'tart-small' || inputs.runner) }}-${{ hashFiles('cmux.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
-          restore-keys: spm-${{ ((!inputs.runner || inputs.runner == 'auto') && 'tart-small' || inputs.runner) }}-
+          key: spm-${{ ((!inputs.runner || inputs.runner == 'auto') && 'tartelet' || inputs.runner) }}-${{ hashFiles('cmux.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: spm-${{ ((!inputs.runner || inputs.runner == 'auto') && 'tartelet' || inputs.runner) }}-
 
       - name: Sanitize Swift package cache
         run: python3 scripts/ci/sanitize-xcode-source-packages-cache.py .ci-source-packages

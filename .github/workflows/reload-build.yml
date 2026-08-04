@@ -34,10 +34,10 @@ on:
           macOS runner label to build on. Builds use the ephemeral self-hosted
           Tart pool.
         required: false
-        default: tart-small
+        default: tartelet
         type: choice
         options:
-          - tart-small
+          - tartelet
       nonce:
         description: Opaque marker echoed into run-name so the dispatcher can find this run.
         required: false

@@ -48,33 +48,33 @@ if grep -R -n -E 'runs-on:.*(extras=.*otel|/otel([/+]|$))' "$WORKFLOW_DIR"; then
 fi
 
 # ci.yml jobs
-check_runner "$CI_FILE" "workflow-guard-tests" 'runs-on: tart-small' "Tart self-hosted"
-check_runner "$CI_FILE" "app-host-unit-tests" 'runs-on: tart-small' "Tart self-hosted"
-check_runner "$CI_FILE" "swift-package-tests" 'runs-on: tart-small' "Tart self-hosted"
-check_runner "$CI_FILE" "tests-build-and-lag" 'runs-on: tart-small' "Tart self-hosted"
-check_runner "$CI_FILE" "release-build" 'runs-on: tart-small' "Tart self-hosted"
-check_runner "$CI_FILE" "ui-regressions" 'runs-on: tart-small' "Tart self-hosted"
+check_runner "$CI_FILE" "workflow-guard-tests" 'runs-on: tartelet' "Tartelet self-hosted"
+check_runner "$CI_FILE" "app-host-unit-tests" 'runs-on: tartelet' "Tartelet self-hosted"
+check_runner "$CI_FILE" "swift-package-tests" 'runs-on: tartelet' "Tartelet self-hosted"
+check_runner "$CI_FILE" "tests-build-and-lag" 'runs-on: tartelet' "Tartelet self-hosted"
+check_runner "$CI_FILE" "release-build" 'runs-on: tartelet' "Tartelet self-hosted"
+check_runner "$CI_FILE" "ui-regressions" 'runs-on: tartelet' "Tartelet self-hosted"
 
 # build-ghosttykit.yml
-check_runner "$GHOSTTYKIT_FILE" "build-ghosttykit" 'runs-on: tart-small' "Tart self-hosted"
+check_runner "$GHOSTTYKIT_FILE" "build-ghosttykit" 'runs-on: tartelet' "Tartelet self-hosted"
 
 # ci-macos-compat.yml uses matrix.os.
-check_runner "$COMPAT_FILE" "compat-tests" 'os: tart-small' "Tart self-hosted"
+check_runner "$COMPAT_FILE" "compat-tests" 'os: tartelet' "Tartelet self-hosted"
 
 # release.yml jobs
-check_runner "$RELEASE_FILE" "build-ghostty-cli-helper" 'runs-on: tart-small' "Tart self-hosted"
-check_runner "$RELEASE_FILE" "build-sign-notarize" 'runs-on: \[tart-small, zerocmux-signing\]' "Tart self-hosted signing"
+check_runner "$RELEASE_FILE" "build-ghostty-cli-helper" 'runs-on: tartelet' "Tartelet self-hosted"
+check_runner "$RELEASE_FILE" "build-sign-notarize" 'runs-on: \[tartelet, zerocmux-signing\]' "Tartelet self-hosted signing"
 
 # Other macOS workflows
-check_runner "$NIGHTLY_FILE" "build-sign-notarize-nightly" 'runs-on: tart-small' "Tart self-hosted"
-check_runner "$TMUX_FILE" "terminal-nightly" 'runs-on: tart-small' "Tart self-hosted"
-check_runner "$TUI_FILE" "test" "matrix\.os == 'macos' && 'tart-small'" "Tart self-hosted for macOS"
-check_runner "$TEST_MACOS_FILE" "tests" 'runs-on: tart-small' "Tart self-hosted"
-check_runner "$E2E_FILE" "e2e" "&& 'tart-small' \|\| inputs\.runner" "Tart self-hosted"
-check_runner "$PERF_FILE" "activation-session-benchmark" "&& 'tart-small' \|\| inputs\.runner" "Tart self-hosted"
+check_runner "$NIGHTLY_FILE" "build-sign-notarize-nightly" 'runs-on: tartelet' "Tartelet self-hosted"
+check_runner "$TMUX_FILE" "terminal-nightly" 'runs-on: tartelet' "Tartelet self-hosted"
+check_runner "$TUI_FILE" "test" "matrix\.os == 'macos' && 'tartelet'" "Tartelet self-hosted for macOS"
+check_runner "$TEST_MACOS_FILE" "tests" 'runs-on: tartelet' "Tartelet self-hosted"
+check_runner "$E2E_FILE" "e2e" "&& 'tartelet' \|\| inputs\.runner" "Tartelet self-hosted"
+check_runner "$PERF_FILE" "activation-session-benchmark" "&& 'tartelet' \|\| inputs\.runner" "Tartelet self-hosted"
 check_runner "$RELOAD_FILE" "build" 'runs-on: \$\{\{ inputs\.runner \}\}' "the Tart-only dispatch input"
 
-if ! grep -Fq 'default: tart-small' "$RELOAD_FILE"; then
+if ! grep -Fq 'default: tartelet' "$RELOAD_FILE"; then
   echo "FAIL: reload-build.yml must default to the Tart self-hosted pool"
   exit 1
 fi
