@@ -90,17 +90,24 @@ jobs:
           import json
           import sys
 
-          # Throughput/latency benchmarks are not leak-check subjects: valgrind's
-          # instruction emulation makes their measured bounds meaningless and
-          # their fixed transfer volume dominates this job's budget. The same
-          # transport allocation paths stay covered here by direct_ws_e2e,
-          # direct_wss_e2e, forward_e2e, multi_client_e2e and pty_reconnect_e2e,
-          # and the excluded targets keep running unmodified in `test (linux)`
-          # and `test (macos)`.
+          # Valgrind checks integration-test binaries. The lib/bin unit harnesses
+          # mix hundreds of deadline and scheduling assertions whose wall-clock
+          # contracts are invalid under instruction emulation; the complete unit
+          # suite keeps running unmodified in `test (linux)` and `test (macos)`.
+          # Integration targets retain the protocol, PTY, browser, resource, and
+          # SDK lifecycle coverage that can reveal real leaks.
+          INTEGRATION_KIND = "test"
+
+          # Throughput/latency benchmarks are not leak-check subjects either:
+          # valgrind makes their measured bounds meaningless and their fixed
+          # transfer volume dominates this job's budget. The same transport
+          # allocation paths stay covered here by direct_ws_e2e, direct_wss_e2e,
+          # forward_e2e, multi_client_e2e and pty_reconnect_e2e.
           BENCHMARK_TARGETS = {"interactive_latency_e2e"}
 
           seen = set()
           skipped = set()
+          skipped_unit_harnesses = set()
           with open("target/cargo-test-binaries.jsonl", "r", encoding="utf-8") as messages:
               with open("target/valgrind-test-binaries.txt", "w", encoding="utf-8") as output:
                   for line in messages:
@@ -113,7 +120,11 @@ jobs:
                       executable = message.get("executable")
                       if not executable or executable in seen:
                           continue
-                      name = message.get("target", {}).get("name")
+                      target = message.get("target", {})
+                      name = target.get("name")
+                      if INTEGRATION_KIND not in target.get("kind", []):
+                          skipped_unit_harnesses.add(name or "<unnamed>")
+                          continue
                       if name in BENCHMARK_TARGETS:
                           skipped.add(name)
                           continue
@@ -126,8 +137,9 @@ jobs:
           if missing:
               raise SystemExit(f"benchmark exclusion list is stale: {sorted(missing)}")
           print(
-              f"Collected {len(seen)} test binaries "
-              f"(skipped benchmarks: {sorted(skipped)})",
+              f"Collected {len(seen)} integration test binaries "
+              f"(skipped benchmarks: {sorted(skipped)}; "
+              f"unit harnesses: {sorted(skipped_unit_harnesses)})",
               file=sys.stderr,
           )
           PY

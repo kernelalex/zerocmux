@@ -342,6 +342,26 @@ struct Process {
 
 impl Process {
     fn diagnostic_after_stdout_eof(&self) -> Option<String> {
+        #[cfg(unix)]
+        let exited = {
+            // Pipe EOF can become observable just before wait status. Give the
+            // child the existing termination grace to publish that status so
+            // the stderr worker is joined before this one-shot diagnostic read.
+            let deadline = Instant::now() + SSH_TERMINATION_GRACE;
+            loop {
+                let exited = self
+                    .child
+                    .lock()
+                    .ok()
+                    .and_then(|mut child| child.as_mut()?.try_wait().ok().flatten())
+                    .is_some();
+                if exited || Instant::now() >= deadline {
+                    break exited;
+                }
+                thread::sleep(Duration::from_millis(1));
+            }
+        };
+        #[cfg(not(unix))]
         let exited = self
             .child
             .lock()

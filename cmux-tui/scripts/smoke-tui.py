@@ -140,6 +140,16 @@ def tree():
 def active_screen(ws):
     return next(s for s in ws["screens"] if s["active"])
 
+def wait_for_active_screen(predicate, seconds=15):
+    deadline = time.time() + seconds
+    last = None
+    while time.time() < deadline:
+        drain(0.2)
+        last = active_screen(tree()[0])
+        if predicate(last):
+            return last
+    raise AssertionError(last)
+
 def send_prefix_t_until_tab_count(count):
     last = None
     for _ in range(5):
@@ -703,24 +713,34 @@ assert end_reordered == [tab_order[0], tab_order[1], tab_order[2]], (tab_order, 
 print("tab drag past last chip inserts at end ok")
 
 moving_surface = left_pane["tabs"][0]["surface"]
+left_pane_id = left_pane["id"]
+right_pane_id = right_pane["id"]
 os.write(fd, b"\x1b[<0;27;1M\x1b[<32;63;1M\x1b[<0;63;1m")
-drain(1.0)
-screen0 = active_screen(tree()[0])
+def tab_crossed_panes(screen):
+    panes = {p["id"]: p for p in screen["panes"]}
+    return (
+        moving_surface not in [t["surface"] for t in panes[left_pane_id]["tabs"]]
+        and moving_surface in [t["surface"] for t in panes[right_pane_id]["tabs"]]
+    )
+screen0 = wait_for_active_screen(tab_crossed_panes)
 panes_by_id = {p["id"]: p for p in screen0["panes"]}
-assert moving_surface not in [t["surface"] for t in panes_by_id[left_pane["id"]]["tabs"]], screen0
-assert moving_surface in [t["surface"] for t in panes_by_id[right_pane["id"]]["tabs"]], screen0
+assert moving_surface not in [t["surface"] for t in panes_by_id[left_pane_id]["tabs"]], screen0
+assert moving_surface in [t["surface"] for t in panes_by_id[right_pane_id]["tabs"]], screen0
 print("tab drag to another pane ok")
 
-left_pane = panes_by_id[left_pane["id"]]
-right_pane = panes_by_id[right_pane["id"]]
+left_pane = panes_by_id[left_pane_id]
+right_pane = panes_by_id[right_pane_id]
 content_surface = left_pane["tabs"][0]["surface"]
 right_before = [t["surface"] for t in right_pane["tabs"]]
+expected_right = right_before + [content_surface]
 os.write(fd, b"\x1b[<0;27;1M\x1b[<32;82;8M\x1b[<0;82;8m")
-drain(1.0)
-screen0 = active_screen(tree()[0])
+def tab_appended_to_pane_content(screen):
+    panes = {p["id"]: p for p in screen["panes"]}
+    return [t["surface"] for t in panes[right_pane_id]["tabs"]] == expected_right
+screen0 = wait_for_active_screen(tab_appended_to_pane_content)
 panes_by_id = {p["id"]: p for p in screen0["panes"]}
-right_after = [t["surface"] for t in panes_by_id[right_pane["id"]]["tabs"]]
-assert right_after == right_before + [content_surface], (right_before, right_after, screen0)
+right_after = [t["surface"] for t in panes_by_id[right_pane_id]["tabs"]]
+assert right_after == expected_right, (right_before, right_after, screen0)
 print("tab drag to pane content appends ok")
 
 # Split via socket while TUI is attached.
