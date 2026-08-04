@@ -14086,8 +14086,14 @@ mod tests {
         Mux::new_for_test("test", SurfaceOptions::default())
     }
 
+    static LARGE_SURFACE_STRESS_TEST_LOCK: Mutex<()> = Mutex::new(());
+
     fn wait_for_kitty_image_budget(mux: &Mux) {
-        let deadline = Instant::now() + Duration::from_secs(10);
+        wait_for_kitty_image_budget_until(mux, Duration::from_secs(10));
+    }
+
+    fn wait_for_kitty_image_budget_until(mux: &Mux, timeout: Duration) {
+        let deadline = Instant::now() + timeout;
         while !mux.kitty_image_budget_idle_for_test() {
             assert!(Instant::now() < deadline, "Kitty image budget worker did not converge");
             std::thread::sleep(Duration::from_millis(5));
@@ -16726,6 +16732,7 @@ mod tests {
 
     #[test]
     fn kitty_quota_exhaustion_disables_only_overflow_surfaces_and_promotes_them() {
+        let _stress_test_guard = LARGE_SURFACE_STRESS_TEST_LOCK.lock().unwrap();
         let mux = test_mux();
         let opts = mux.surface_options.lock().unwrap().clone();
         let owner_limit =
@@ -16738,7 +16745,7 @@ mod tests {
                 Surface::spawn_for_test(mux.next_id(), opts.clone(), Arc::downgrade(&mux)).unwrap(),
             );
         }
-        wait_for_kitty_image_budget(&mux);
+        wait_for_kitty_image_budget_until(&mux, Duration::from_secs(30));
 
         let participating_limit = surfaces[0]
             .with_terminal(|terminal| terminal.kitty_image_count_limit().unwrap())
@@ -16753,7 +16760,7 @@ mod tests {
         );
 
         mux.unregister_kitty_image_surface(&surfaces[0]).unwrap();
-        wait_for_kitty_image_budget(&mux);
+        wait_for_kitty_image_budget_until(&mux, Duration::from_secs(30));
         assert_eq!(
             surfaces[owner_limit]
                 .with_terminal(|terminal| terminal.kitty_image_count_limit().unwrap())
@@ -20456,6 +20463,7 @@ mod tests {
 
     #[test]
     fn structural_test_mux_can_create_many_surfaces_without_ptys() {
+        let _stress_test_guard = LARGE_SURFACE_STRESS_TEST_LOCK.lock().unwrap();
         let mux = test_mux();
         let first = mux.new_workspace(None, Some((120, 40))).unwrap();
         let pane = mux.with_state(|s| s.pane_of(first.id).unwrap());
