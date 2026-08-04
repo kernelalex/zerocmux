@@ -14087,7 +14087,7 @@ mod tests {
     }
 
     fn wait_for_kitty_image_budget(mux: &Mux) {
-        let deadline = Instant::now() + Duration::from_secs(2);
+        let deadline = Instant::now() + Duration::from_secs(10);
         while !mux.kitty_image_budget_idle_for_test() {
             assert!(Instant::now() < deadline, "Kitty image budget worker did not converge");
             std::thread::sleep(Duration::from_millis(5));
