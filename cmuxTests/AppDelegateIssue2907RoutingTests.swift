@@ -859,7 +859,7 @@ final class AppDelegateIssue2907RoutingTests: XCTestCase {
         )
         workspace.restoredAgentResumeStatesByPanelId[panelId] = .manualResumeAvailable
 
-        // Shell integration reports commandRunning before `cmux restore` starts.
+        // Shell integration reports commandRunning before `zerocmux restore` starts.
         workspace.updatePanelShellActivityState(panelId: panelId, state: .commandRunning)
 
         XCTAssertNil(workspace.restoredAgentSnapshotsByPanelId[panelId])

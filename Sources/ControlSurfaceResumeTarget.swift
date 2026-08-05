@@ -279,7 +279,7 @@ extension TerminalController {
         // while the restore-time agent snapshot still names the previous
         // conversation. Reuse the session-restore identity gate so the record
         // returned to the CLI always agrees with the binding that generated its
-        // typed `cmux restore <kind> <checkpoint>` selector.
+        // typed `zerocmux restore <kind> <checkpoint>` selector.
         let compatibleAgent: SessionRestorableAgentSnapshot? =
             if binding == nil || binding?.isAgentHookBinding == true {
                 Workspace.restorableAgentForSessionRestore(

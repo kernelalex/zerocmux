@@ -17,7 +17,7 @@ public struct AgentRestoreLaunch: Sendable {
     /// ``TerminalSurface`` prepends the owning app's bundled `Resources/bin`
     /// directory to the terminal environment before the login shell starts, so
     /// this resolves to the same build while keeping restored scrollback useful.
-    public static let cliStartupExecutableToken = "cmux"
+    public static let cliStartupExecutableToken = "zerocmux"
 
     private enum Provider: String, Sendable {
         case claude

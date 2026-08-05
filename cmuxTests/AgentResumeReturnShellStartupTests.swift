@@ -10,8 +10,8 @@ import Testing
 
 @Suite("Agent resume return shell startup")
 struct AgentResumeReturnShellStartupTests {
-    @Test("local resume input is one short readable CLI command")
-    func localResumeInputUsesRestoreVerb() {
+    @Test("local resume input uses the bundled zerocmux CLI command")
+    func localResumeInputUsesZerocmuxRestoreVerb() {
         let sessionID = "019dad34-d218-7943-b81a-eddac5c87951"
         let agentBinding = SurfaceResumeBindingSnapshot(
             kind: "codex",
@@ -47,17 +47,17 @@ struct AgentResumeReturnShellStartupTests {
             agentBinding.restoreStartupInput(
                 repairPortableAgentExecutable: true
             )
-                == " cmux restore codex \(sessionID)\n"
+                == " zerocmux restore codex \(sessionID)\n"
         )
         #expect(
             manualBinding.restoreStartupInput(
                 repairPortableAgentExecutable: true
             )
-                == " cmux restore --surface\n"
+                == " zerocmux restore --surface\n"
         )
         #expect(
             snapshot.resumeStartupInput()
-                == " cmux restore codex \(sessionID)\n"
+                == " zerocmux restore codex \(sessionID)\n"
         )
     }
 
@@ -91,7 +91,7 @@ struct AgentResumeReturnShellStartupTests {
         let fileManager = FileManager.default
         let root = fileManager.temporaryDirectory
             .appendingPathComponent("cmux-9258-store-\(UUID().uuidString)", isDirectory: true)
-        let launcherDirectory = root.appendingPathComponent("cmux-r", isDirectory: true)
+        let launcherDirectory = root.appendingPathComponent("zerocmux-r", isDirectory: true)
         let staleLauncher = launcherDirectory.appendingPathComponent("stale.zsh", isDirectory: false)
         let currentLauncher = launcherDirectory.appendingPathComponent("current.zsh", isDirectory: false)
         let now = Date(timeIntervalSince1970: 2_000_000_000)
