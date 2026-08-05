@@ -1672,7 +1672,7 @@ import Testing
         )
     }
 
-    @Test func testThemesSetReloadsRunningAppAfterEveryThemeWrite() throws {
+    func verifyThemesSetReloadsRunningAppAfterEveryThemeWrite() throws {
         let cliPath = try bundledCLIPath()
         let fileManager = FileManager.default
         let root = fileManager.temporaryDirectory
@@ -1698,7 +1698,7 @@ import Testing
         let notificationLock = NSLock()
         var observedReloads: [(bundleIdentifier: String?, phase: String?)] = []
         let observer = DistributedNotificationCenter.default().addObserver(
-            forName: Notification.Name("com.cmuxterm.themes.reload-config"),
+            forName: Notification.Name("com.kernelalex.zerocmux.themes.reload-config"),
             object: nil,
             queue: notificationQueue
         ) { notification in
@@ -1759,7 +1759,7 @@ import Testing
         XCTAssertEqual(responder.receivedRequests, [])
     }
 
-    @Test func testThemesSetTargetsResolvedTaggedSocketWhenBundleEnvironmentIsStale() throws {
+    func verifyThemesSetTargetsResolvedTaggedSocketWhenBundleEnvironmentIsStale() throws {
         let cliPath = try bundledCLIPath()
         let fileManager = FileManager.default
         let root = fileManager.temporaryDirectory
@@ -1772,16 +1772,18 @@ import Testing
         try fileManager.createDirectory(at: themesURL, withIntermediateDirectories: true)
         try writeTheme(named: "Theme A", background: "#101010", to: themesURL)
 
-        let socketPath = "/tmp/zerocmux-debug-active-theme-\(UUID().uuidString).sock"
+        let socketSlug = "active-theme-\(UUID().uuidString.lowercased())"
+        let socketPath = "/tmp/zerocmux-debug-\(socketSlug).sock"
         let staleBundleIdentifier = "com.kernelalex.zerocmux.debug.stale.theme"
-        let targetBundleIdentifier = "com.kernelalex.zerocmux.debug.active.theme"
+        let targetBundleSlug = socketSlug.replacingOccurrences(of: "-", with: ".")
+        let targetBundleIdentifier = "com.kernelalex.zerocmux.debug.\(targetBundleSlug)"
         let reloadExpectation = expectation(description: "zerocmux themes set targets the resolved socket bundle")
         let notificationQueue = OperationQueue()
         notificationQueue.maxConcurrentOperationCount = 1
         let notificationLock = NSLock()
         var observedReloads: [(bundleIdentifier: String?, phase: String?, socketPath: String?)] = []
         let observer = DistributedNotificationCenter.default().addObserver(
-            forName: Notification.Name("com.cmuxterm.themes.reload-config"),
+            forName: Notification.Name("com.kernelalex.zerocmux.themes.reload-config"),
             object: nil,
             queue: notificationQueue
         ) { notification in
@@ -1891,7 +1893,7 @@ import Testing
         XCTAssertEqual(appReadablePaths, [expectedConfigURL.path])
     }
 
-    @Test func testBareInteractiveThemesReloadsRunningAppAfterPickerExits() throws {
+    func verifyBareInteractiveThemesReloadsRunningAppAfterPickerExits() throws {
         let cliPath = try bundledCLIPath()
         let fileManager = FileManager.default
         let root = fileManager.temporaryDirectory
@@ -1941,7 +1943,7 @@ import Testing
         let notificationLock = NSLock()
         var observedReloads: [(bundleIdentifier: String?, phase: String?)] = []
         let observer = DistributedNotificationCenter.default().addObserver(
-            forName: Notification.Name("com.cmuxterm.themes.reload-config"),
+            forName: Notification.Name("com.kernelalex.zerocmux.themes.reload-config"),
             object: nil,
             queue: notificationQueue
         ) { notification in
@@ -2651,6 +2653,24 @@ import Testing
             .split(separator: "\n", omittingEmptySubsequences: false)
             .map(String.init)
             .dropLast())
+    }
+}
+
+@Suite(.serialized)
+struct CMUXCLIThemeReloadRegressionTests {
+    @Test func testThemesSetReloadsRunningAppAfterEveryThemeWrite() throws {
+        try CMUXCLIErrorOutputRegressionTests()
+            .verifyThemesSetReloadsRunningAppAfterEveryThemeWrite()
+    }
+
+    @Test func testThemesSetTargetsResolvedTaggedSocketWhenBundleEnvironmentIsStale() throws {
+        try CMUXCLIErrorOutputRegressionTests()
+            .verifyThemesSetTargetsResolvedTaggedSocketWhenBundleEnvironmentIsStale()
+    }
+
+    @Test func testBareInteractiveThemesReloadsRunningAppAfterPickerExits() throws {
+        try CMUXCLIErrorOutputRegressionTests()
+            .verifyBareInteractiveThemesReloadsRunningAppAfterPickerExits()
     }
 }
 

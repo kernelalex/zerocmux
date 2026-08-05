@@ -141,7 +141,7 @@ try_fetch_prebuilt_xcframework() {
     return 1
   fi
 
-  local repo="${GHOSTTYKIT_REPO:-kernelalex/zerocmux}"
+  local repo="${GHOSTTYKIT_REPO:-Enigma-Labs-Technology/zerocmux}"
   local primary_tag legacy_tag
   if [[ -n "${GHOSTTYKIT_RELEASE_TAG:-}" ]]; then
     primary_tag="$GHOSTTYKIT_RELEASE_TAG"

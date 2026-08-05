@@ -320,7 +320,7 @@ jobs:
           prepare_variant \
             "$APP_DIR" \
             "$NIGHTLY_BUNDLE_ID" \
-            "https://github.com/kernelalex/zerocmux/releases/download/nightly/appcast.xml"
+            "https://github.com/Enigma-Labs-Technology/zerocmux/releases/download/nightly/appcast.xml"
 
           echo "Nightly app name: zerocmux NIGHTLY"
           echo "Nightly bundle ID: ${NIGHTLY_BUNDLE_ID}"
@@ -340,7 +340,7 @@ jobs:
           ./scripts/build_remote_daemon_release_assets.sh \
             --version "$NIGHTLY_REMOTE_DAEMON_VERSION" \
             --release-tag "nightly" \
-            --repo "kernelalex/zerocmux" \
+            --repo "Enigma-Labs-Technology/zerocmux" \
             --output-dir "remote-daemon-assets" \
             --asset-suffix "$NIGHTLY_BUILD"
           MANIFEST_JSON="$(python3 -c 'import json,sys; print(json.dumps(json.load(open(sys.argv[1], encoding="utf-8")), separators=(",",":")))' "remote-daemon-assets/cmuxd-remote-manifest-${NIGHTLY_BUILD}.json")"
@@ -605,7 +605,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 ./scripts/prune_nightly_release_assets.py \
-            --repo kernelalex/zerocmux \
+            --repo Enigma-Labs-Technology/zerocmux \
             --release-tag nightly \
             --keep-builds 100 \
             --execute
@@ -626,7 +626,7 @@ jobs:
             - feed `appcast.xml`
             - compatibility feed `appcast-universal.xml` for older universal nightlies
 
-            [Download zerocmux-nightly-macos.dmg](https://github.com/kernelalex/zerocmux/releases/download/nightly/zerocmux-nightly-macos.dmg)
+            [Download zerocmux-nightly-macos.dmg](https://github.com/Enigma-Labs-Technology/zerocmux/releases/download/nightly/zerocmux-nightly-macos.dmg)
           files: |
             zerocmux-nightly-macos-${{ github.run_id }}*.dmg
             zerocmux-nightly-macos.dmg

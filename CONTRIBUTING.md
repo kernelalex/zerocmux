@@ -10,7 +10,7 @@
 
 1. Clone the repository with submodules:
    ```bash
-   git clone --recursive https://github.com/kernelalex/zerocmux.git
+   git clone --recursive https://github.com/Enigma-Labs-Technology/zerocmux.git
    cd zerocmux
    ```
 

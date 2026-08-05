@@ -87,7 +87,9 @@ struct DockEmptyView: View {
     }
 
     private func openDockDocs() {
-        guard let url = URL(string: "https://github.com/kernelalex/zerocmux") else { return }
+        guard let url = URL(
+            string: "https://github.com/Enigma-Labs-Technology/zerocmux/blob/main/docs/dock.md"
+        ) else { return }
         NSWorkspace.shared.open(url)
     }
 
@@ -98,7 +100,7 @@ struct DockEmptyView: View {
             Set up zerocmux Dock controls for the current context.
 
             First, learn the feature before editing:
-            1. Run `zerocmux docs dock` if the zerocmux CLI is available. If it is not, read https://github.com/kernelalex/zerocmux.
+            1. Run `zerocmux docs dock` if the zerocmux CLI is available. If it is not, read https://github.com/Enigma-Labs-Technology/zerocmux/blob/main/docs/dock.md.
             2. Inspect the repository or current directory to understand the project type, scripts, package manager, dev servers, logs, task runners, test commands, and any existing TUI tools.
             3. If the desired Dock is ambiguous, ask the user what they want monitored or controlled before writing files.
 

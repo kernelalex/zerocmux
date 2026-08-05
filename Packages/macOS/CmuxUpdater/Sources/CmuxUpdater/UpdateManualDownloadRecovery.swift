@@ -26,8 +26,8 @@ public struct UpdateManualDownloadRecovery: Sendable {
     ///   - stableDownloadURLString: Direct DMG URL for the stable channel.
     ///   - nightlyDownloadURLString: Direct DMG URL for the nightly channel.
     public init(
-        stableDownloadURLString: String = "https://github.com/kernelalex/zerocmux/releases/latest/download/zerocmux-macos.dmg",
-        nightlyDownloadURLString: String = "https://github.com/kernelalex/zerocmux/releases/download/nightly/zerocmux-nightly-macos.dmg"
+        stableDownloadURLString: String = "https://github.com/Enigma-Labs-Technology/zerocmux/releases/latest/download/zerocmux-macos.dmg",
+        nightlyDownloadURLString: String = "https://github.com/Enigma-Labs-Technology/zerocmux/releases/download/nightly/zerocmux-nightly-macos.dmg"
     ) {
         self.stableDownloadURLString = stableDownloadURLString
         self.nightlyDownloadURLString = nightlyDownloadURLString

@@ -8,8 +8,9 @@ nonisolated private let cmuxSettingsFileStoreLogger = Logger(subsystem: "com.ker
 
 final class CmuxSettingsFileStore {
     static let currentSchemaVersion = 1
-    static let schemaURLString = "https://raw.githubusercontent.com/kernelalex/zerocmux/main/docs/data/cmux.schema.json"
+    static let schemaURLString = "https://raw.githubusercontent.com/Enigma-Labs-Technology/zerocmux/main/docs/data/cmux.schema.json"
     private static let legacySchemaURLStrings = [
+        "https://raw.githubusercontent.com/Enigma-Labs-Technology/zerocmux/main/docs/data/cmux-settings.schema.json",
         "https://raw.githubusercontent.com/kernelalex/zerocmux/main/docs/data/cmux-settings.schema.json",
     ]
     private static let releaseBundleIdentifier = "com.kernelalex.zerocmux"

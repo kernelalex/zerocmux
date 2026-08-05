@@ -12486,13 +12486,13 @@ struct CMUXCLI {
         let downloadURL = entry?.downloadURL ?? "unknown"
         let checksumsAssetName = manifest?.checksumsAssetName ?? "unknown"
         let checksumsURL = manifest?.checksumsURL ?? "unknown"
-        let downloadCommand = "gh release download \(releaseTag) --repo kernelalex/zerocmux --pattern \(assetName)"
-        let downloadChecksumsCommand = "gh release download \(releaseTag) --repo kernelalex/zerocmux --pattern \(checksumsAssetName)"
+        let downloadCommand = "gh release download \(releaseTag) --repo Enigma-Labs-Technology/zerocmux --pattern \(assetName)"
+        let downloadChecksumsCommand = "gh release download \(releaseTag) --repo Enigma-Labs-Technology/zerocmux --pattern \(checksumsAssetName)"
         let checksumVerifyCommand = "shasum -a 256 -c \(checksumsAssetName) --ignore-missing"
         let signerWorkflow = releaseTag == "nightly"
-            ? "kernelalex/zerocmux/.github/workflows/nightly.yml"
-            : "kernelalex/zerocmux/.github/workflows/release.yml"
-        let verifyCommand = "gh attestation verify ./\(assetName) --repo kernelalex/zerocmux --signer-workflow \(signerWorkflow)"
+            ? "Enigma-Labs-Technology/zerocmux/.github/workflows/nightly.yml"
+            : "Enigma-Labs-Technology/zerocmux/.github/workflows/release.yml"
+        let verifyCommand = "gh attestation verify ./\(assetName) --repo Enigma-Labs-Technology/zerocmux --signer-workflow \(signerWorkflow)"
 
         let payload: [String: Any] = [
             "app_version": remoteDaemonVersionString(from: info),
@@ -34875,9 +34875,9 @@ export default CMUXSessionRestore;
         print()
         print(shortcuts)
         print()
-        print("  \(bold)Docs\(reset)\(subdued)                https://github.com/kernelalex/zerocmux#readme\(reset)")
-        print("  \(bold)GitHub\(reset)\(subdued)              https://github.com/kernelalex/zerocmux\(reset)")
-        print("  \(bold)Issues\(reset)\(subdued)              https://github.com/kernelalex/zerocmux/issues\(reset)")
+        print("  \(bold)Docs\(reset)\(subdued)                https://github.com/Enigma-Labs-Technology/zerocmux#readme\(reset)")
+        print("  \(bold)GitHub\(reset)\(subdued)              https://github.com/Enigma-Labs-Technology/zerocmux\(reset)")
+        print("  \(bold)Issues\(reset)\(subdued)              https://github.com/Enigma-Labs-Technology/zerocmux/issues\(reset)")
         print()
         print("  \(subdued)Run \(reset)\(bold)zerocmux --help\(reset)\(subdued) for all commands.\(reset)")
         print("  \(subdued)Run \(reset)\(bold)zerocmux shortcuts\(reset)\(subdued) to edit shortcuts.\(reset)")

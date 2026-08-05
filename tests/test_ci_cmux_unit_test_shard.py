@@ -267,6 +267,9 @@ def main() -> int:
         "-only-testing:cmuxTests/BrowserDeveloperToolsVisibilityPersistenceTests": [],
         "-only-testing:cmuxTests/BrowserSessionHistoryRestoreTests": [],
     }
+    cli_suite_selector = "-only-testing:cmuxTests/CMUXCLIErrorOutputRegressionTests"
+    cli_focused_skip_prefix = "-skip-testing:cmuxTests/CMUXCLIErrorOutputRegressionTests/"
+    cli_suite_shards: list[int] = []
     with tempfile.TemporaryDirectory() as tmp:
         output = Path(tmp) / "repo-shard.args"
         for shard in range(1, 5):
@@ -296,15 +299,34 @@ def main() -> int:
             for focused_selector in (
                 "-only-testing:cmuxTests/BrowserSystemProxyMirrorTests",
                 "-only-testing:cmuxTests/CLISSHSessionAttachAnchorTests",
+                "-only-testing:cmuxTests/CMUXCLIThemeReloadRegressionTests",
                 "-only-testing:cmuxTests/GhosttyOptionAsAltModsTests",
                 "-only-testing:cmuxTests/RemoteTmuxMirrorLayoutIdentityTests",
+                "-only-testing:cmuxTests/SocketACLReloadRegressionTests",
             ):
                 if focused_selector in shard_selectors:
                     print(f"FAIL: focused gate selector should not be folded into shard: {focused_selector}")
                     return 1
+            if cli_suite_selector in shard_selectors:
+                cli_suite_shards.append(shard)
+            focused_cli_skips = [
+                selector
+                for selector in shard_selectors
+                if selector.startswith(cli_focused_skip_prefix)
+            ]
+            if focused_cli_skips:
+                print(
+                    "FAIL: broad CLI suite must not rely on unsupported Swift Testing method skips: "
+                    f"{focused_cli_skips}"
+                )
+                return 1
             for separated_selector, placements in repo_separated_placement.items():
                 if separated_selector in shard_selectors:
                     placements.append(shard)
+
+    if len(cli_suite_shards) != 1:
+        print(f"FAIL: broad CLI suite should be assigned exactly once, got {cli_suite_shards}")
+        return 1
 
     placements = list(repo_separated_placement.values())
     if any(len(shards) != 1 for shards in placements) or placements[0] == placements[1]:

@@ -8,6 +8,13 @@ fi
 log_dir="${RUNNER_TEMP:-/tmp}"
 log_stem="${log_dir%/}/zerocmux-app-host-xcodebuild-${CMUX_TAG:-untagged}"
 max_attempts="${CMUX_APP_HOST_XCODEBUILD_ATTEMPTS:-3}"
+minimum_swift_tests="${CMUX_APP_HOST_MIN_SWIFT_TESTS:-0}"
+case "$minimum_swift_tests" in
+  ''|*[!0-9]*)
+    echo "FAIL: CMUX_APP_HOST_MIN_SWIFT_TESTS must be a non-negative integer" >&2
+    exit 2
+    ;;
+esac
 export CMUX_XCODEBUILD_NONINTERACTIVE_IDLE_TIMEOUT_SECONDS="${CMUX_XCODEBUILD_NONINTERACTIVE_IDLE_TIMEOUT_SECONDS:-${CMUX_XCODEBUILD_NONINTERACTIVE_TIMEOUT_SECONDS:-300}}"
 echo "App-host xcodebuild idle timeout: ${CMUX_XCODEBUILD_NONINTERACTIVE_IDLE_TIMEOUT_SECONDS}s, attempts: ${max_attempts}"
 
@@ -99,6 +106,18 @@ while [ "$attempt" -le "$max_attempts" ]; do
       continue
     fi
     exit "$status"
+  fi
+
+  if [ "$minimum_swift_tests" -gt 0 ]; then
+    swift_test_count="$(
+      { grep -Eo 'Test run with [0-9]+ tests?' "$log_path" || true; } \
+        | awk '{ if ($4 > maximum) maximum = $4 } END { print maximum + 0 }'
+    )"
+    if [ "$swift_test_count" -lt "$minimum_swift_tests" ]; then
+      echo "FAIL: app-host xcodebuild ran ${swift_test_count} Swift tests; expected at least ${minimum_swift_tests}" >&2
+      exit 1
+    fi
+    echo "App-host Swift test count: ${swift_test_count} (minimum ${minimum_swift_tests})"
   fi
 
   if ! grep -Eq 'SocketControlServer: Listening on |message = "socket.listener.start"' "$log_path"; then

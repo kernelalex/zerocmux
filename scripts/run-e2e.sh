@@ -9,7 +9,7 @@
 #   ./scripts/run-e2e.sh UpdatePillUITests --no-video --timeout 300
 set -euo pipefail
 
-REPO="kernelalex/zerocmux"
+REPO="Enigma-Labs-Technology/zerocmux"
 WORKFLOW="test-e2e.yml"
 
 # Defaults

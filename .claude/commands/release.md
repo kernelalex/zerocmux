@@ -15,11 +15,11 @@ Prepare a new release for zerocmux. This command updates the changelog, bumps th
    - Categorize changes into: Added, Changed, Fixed, Removed
    - **Collect contributors:** For each PR referenced in the commits, get the author:
      ```bash
-     gh pr view <N> --repo kernelalex/zerocmux --json author --jq '.author.login'
+     gh pr view <N> --repo Enigma-Labs-Technology/zerocmux --json author --jq '.author.login'
      ```
    - Also check for linked issue reporters (the person who filed the bug):
      ```bash
-     gh issue view <N> --repo kernelalex/zerocmux --json author --jq '.author.login'
+     gh issue view <N> --repo Enigma-Labs-Technology/zerocmux --json author --jq '.author.login'
      ```
    - Build a deduplicated list of all contributor `@handle`s for the release
 
@@ -43,8 +43,8 @@ Prepare a new release for zerocmux. This command updates the changelog, bumps th
 6. **PR and CI.** `gh pr create --title "Release vX.Y.Z" --body "...changelog summary..."` with the changelog entries in the body, then `gh pr checks --watch`. Fix failures and push until every check passes.
 
 11. **Monitor the release workflow**
-    - Watch: `gh run watch --repo kernelalex/zerocmux`
-    - Verify the release appears at: https://github.com/kernelalex/zerocmux/releases
+    - Watch: `gh run watch --repo Enigma-Labs-Technology/zerocmux`
+    - Verify the release appears at: https://github.com/Enigma-Labs-Technology/zerocmux/releases
     - Check that the DMG is attached to the release
 
 12. **Verify homebrew cask update**

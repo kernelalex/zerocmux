@@ -135,7 +135,7 @@ final class HostSettingsActions: SettingsHostActions {
     }
 
     func sendFeedback() {
-        guard let url = URL(string: "https://github.com/kernelalex/zerocmux/issues/new") else { return }
+        guard let url = URL(string: "https://github.com/Enigma-Labs-Technology/zerocmux/issues/new") else { return }
         NSWorkspace.shared.open(url)
     }
 

@@ -39,7 +39,7 @@ Manual tag flow:
 ```bash
 git tag vX.Y.Z
 git push origin vX.Y.Z
-gh run watch --repo kernelalex/zerocmux
+gh run watch --repo Enigma-Labs-Technology/zerocmux
 ```
 
 ## Release asset

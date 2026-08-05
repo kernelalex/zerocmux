@@ -38,7 +38,9 @@ public struct UpdateFeedResolver: Sendable {
     ///
     /// - Parameter fallbackFeedURL: The appcast URL to fall back to when the build-time
     ///   feed URL is absent. Defaults to the project's latest-release appcast.
-    public init(fallbackFeedURL: String = "https://github.com/kernelalex/zerocmux/releases/latest/download/appcast.xml") {
+    public init(
+        fallbackFeedURL: String = "https://github.com/Enigma-Labs-Technology/zerocmux/releases/latest/download/appcast.xml"
+    ) {
         self.fallbackFeedURL = fallbackFeedURL
     }
 

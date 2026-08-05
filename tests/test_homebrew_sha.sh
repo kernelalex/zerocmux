@@ -22,7 +22,7 @@ fi
 echo "Cask version: $VERSION"
 echo "Cask SHA256:  $CASK_SHA"
 
-URL="https://github.com/kernelalex/zerocmux/releases/download/v${VERSION}/zerocmux-macos.dmg"
+URL="https://github.com/Enigma-Labs-Technology/zerocmux/releases/download/v${VERSION}/zerocmux-macos.dmg"
 TMPFILE=$(mktemp)
 trap 'rm -f "$TMPFILE"' EXIT
 

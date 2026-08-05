@@ -20,7 +20,7 @@ Examples:
   ./skills.sh
   ./skills.sh --list
   ./skills.sh --skill cmux --skill cmux-browser
-  curl -fsSL https://raw.githubusercontent.com/kernelalex/zerocmux/main/skills.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/Enigma-Labs-Technology/zerocmux/main/skills.sh | bash
 EOF
 }
 
@@ -111,7 +111,7 @@ if [[ -z "$source_dir" ]]; then
   need_cmd mktemp
 
   tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/cmux-skills.XXXXXX")"
-  archive_url="https://codeload.github.com/kernelalex/zerocmux/tar.gz/${ref}"
+  archive_url="https://codeload.github.com/Enigma-Labs-Technology/zerocmux/tar.gz/${ref}"
   curl -fsSL "$archive_url" | tar -xz -C "$tmp_dir"
   checkout_dir="$(find "$tmp_dir" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
   [[ -n "$checkout_dir" ]] || die "downloaded archive was empty"

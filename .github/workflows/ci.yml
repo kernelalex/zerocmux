@@ -157,6 +157,9 @@ jobs:
       - name: Validate app-host xcodebuild attempt budget
         run: ./tests/test_ci_app_host_xcodebuild_attempts.sh
 
+      - name: Validate app-host Swift test count guard
+        run: ./tests/test_ci_app_host_xcodebuild_test_count.sh
+
       - name: Validate zerocmux profiling support scripts
         run: ./tests/test_start_cmux_profiling.sh
 
@@ -800,6 +803,28 @@ jobs:
             -destination "platform=macOS" \
             CMUX_SKIP_ZIG_BUILD=1 \
             -only-testing:cmuxTests/SocketACLReloadRegressionTests \
+            test
+
+      - name: Run CLI theme reload regressions
+        if: ${{ matrix.shard == fromJSON(env.CMUX_APP_HOST_FOCUSED_REGRESSION_SHARD) }}
+        env:
+          CMUX_APP_HOST_MIN_SWIFT_TESTS: "3"
+        run: |
+          # These tests observe cross-process distributed notifications. Run
+          # them non-tolerantly in an isolated host so unrelated app-host work
+          # cannot satisfy or starve their expectations. Their dedicated suite
+          # is excluded from broad shards, while the rest of the CLI suite stays.
+          set -euo pipefail
+          SOURCE_PACKAGES_DIR="$PWD/.ci-source-packages"
+          scripts/ci/run-in-console-session.sh \
+            scripts/ci/run-app-host-xcodebuild.sh \
+            -project cmux.xcodeproj -scheme zerocmux-unit -configuration Debug \
+            -derivedDataPath "$CMUX_DERIVED_DATA_PATH" \
+            -clonedSourcePackagesDirPath "$SOURCE_PACKAGES_DIR" \
+            -disableAutomaticPackageResolution \
+            -destination "platform=macOS" \
+            CMUX_SKIP_ZIG_BUILD=1 \
+            -only-testing:cmuxTests/CMUXCLIThemeReloadRegressionTests \
             test
 
       - name: Run notification scroll restoration regression
@@ -1819,6 +1844,17 @@ jobs:
             COMPILATION_CACHE_LIMIT_SIZE=3221225472 \
             COMPILER_INDEX_STORE_ENABLE=NO \
             CODE_SIGNING_ALLOWED=NO ASSETCATALOG_COMPILER_APPICON_NAME=AppIcon-Nightly build
+
+      - name: Validate Release updater repository
+        run: |
+          set -euo pipefail
+          APP_PLIST="build-universal/Build/Products/Release/zerocmux.app/Contents/Info.plist"
+          EXPECTED_FEED_URL="https://github.com/Enigma-Labs-Technology/zerocmux/releases/latest/download/appcast.xml"
+          ACTUAL_FEED_URL="$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$APP_PLIST")"
+          if [ "$ACTUAL_FEED_URL" != "$EXPECTED_FEED_URL" ]; then
+            echo "Release SUFeedURL expected '$EXPECTED_FEED_URL', found '$ACTUAL_FEED_URL'" >&2
+            exit 1
+          fi
 
       - name: Bound Xcode compilation cache size
         run: |

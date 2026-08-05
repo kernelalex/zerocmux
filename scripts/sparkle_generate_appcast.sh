@@ -27,8 +27,8 @@ unset SPARKLE_PRIVATE_KEY
 
 SPARKLE_VERSION="${SPARKLE_VERSION:-2.8.1}"
 SPARKLE_REVISION="${SPARKLE_REVISION:-5581748cef2bae787496fe6d61139aebe0a451f6}"
-DOWNLOAD_URL_PREFIX="${DOWNLOAD_URL_PREFIX:-https://github.com/kernelalex/zerocmux/releases/download/$TAG/}"
-RELEASE_NOTES_URL="${RELEASE_NOTES_URL:-https://github.com/kernelalex/zerocmux/releases/tag/$TAG}"
+DOWNLOAD_URL_PREFIX="${DOWNLOAD_URL_PREFIX:-https://github.com/Enigma-Labs-Technology/zerocmux/releases/download/$TAG/}"
+RELEASE_NOTES_URL="${RELEASE_NOTES_URL:-https://github.com/Enigma-Labs-Technology/zerocmux/releases/tag/$TAG}"
 
 work_dir="$(mktemp -d)"
 cleanup() {

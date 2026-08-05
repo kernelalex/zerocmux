@@ -40,7 +40,7 @@ from typing import Any
 
 DEFAULT_PATH = Path.home() / ".config" / "zerocmux" / "cmux.json"
 SCHEMA_URL = (
-    "https://raw.githubusercontent.com/kernelalex/zerocmux/main/web/data/cmux.schema.json"
+    "https://raw.githubusercontent.com/Enigma-Labs-Technology/zerocmux/main/docs/data/cmux.schema.json"
 )
 
 
