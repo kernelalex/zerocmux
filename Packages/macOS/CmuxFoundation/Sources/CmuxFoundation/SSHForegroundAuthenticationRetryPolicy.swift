@@ -70,9 +70,11 @@ public struct SSHForegroundAuthenticationRetryPolicy: Sendable {
     /// period. Survivors are revalidated against that parent, frozen, rescanned,
     /// and force-killed. Process-group boundaries are recorded before TERM so a
     /// handler cannot escape by forking a replacement and exiting before the next
-    /// scan. Every recursive grace check shares one two-second deadline. Once
-    /// that deadline expires, the remaining subtree is frozen parent-first and
-    /// force-killed as one revalidated PID set. Parent-first freezing preserves
+    /// scan. Every recursive grace check normally shares a precise
+    /// 750-millisecond cooperative deadline, reserving the rest of the bounded
+    /// cleanup budget for verified force termination. Once that deadline expires,
+    /// the remaining subtree is frozen parent-first and force-killed as one
+    /// revalidated PID set. Parent-first freezing preserves
     /// the no-new-descendants invariant, while shell-builtin signals and one
     /// final whole-process-table snapshot avoid turning a single deadline into
     /// per-descendant signal-command overhead.
@@ -85,6 +87,11 @@ public struct SSHForegroundAuthenticationRetryPolicy: Sendable {
         """
         cmux_ssh_terminate_auth_process_tree() (
           cmux_ssh_auth_cleanup_has_time() (
+            if [ -n "$cmux_ssh_auth_cleanup_timer_dir" ]; then
+              [ -d "$cmux_ssh_auth_cleanup_timer_dir" ] \
+                && [ ! -e "$cmux_ssh_auth_cleanup_timer_marker" ]
+              exit
+            fi
             cmux_ssh_auth_cleanup_now=$(/bin/date +%s 2>/dev/null) || exit 1
             case "$cmux_ssh_auth_cleanup_now" in ''|*[!0-9]*) exit 1 ;; esac
             [ "$cmux_ssh_auth_cleanup_now" -lt "$cmux_ssh_auth_cleanup_deadline" ]
@@ -313,10 +320,34 @@ public struct SSHForegroundAuthenticationRetryPolicy: Sendable {
           case "$cmux_ssh_auth_tree_root_pid:$cmux_ssh_auth_tree_root_parent" in
             *[!0-9:]*|:*|*:) exit 0 ;;
           esac
-          cmux_ssh_auth_cleanup_started_at=$(/bin/date +%s 2>/dev/null) || exit 0
-          case "$cmux_ssh_auth_cleanup_started_at" in ''|*[!0-9]*) exit 0 ;; esac
-          cmux_ssh_auth_cleanup_deadline=$((cmux_ssh_auth_cleanup_started_at + 2))
+          cmux_ssh_auth_cleanup_timer_dir=$(/usr/bin/mktemp -d \
+            "${TMPDIR:-/tmp}/cmux-ssh-auth-deadline.XXXXXX" 2>/dev/null) || cmux_ssh_auth_cleanup_timer_dir=
+          cmux_ssh_auth_cleanup_timer_marker=
+          cmux_ssh_auth_cleanup_timer_pid=
+          if [ -n "$cmux_ssh_auth_cleanup_timer_dir" ]; then
+            cmux_ssh_auth_cleanup_timer_marker="$cmux_ssh_auth_cleanup_timer_dir/expired"
+            (
+              /bin/sleep 0.75
+              if [ -d "$cmux_ssh_auth_cleanup_timer_dir" ]; then
+                : 2>/dev/null > "$cmux_ssh_auth_cleanup_timer_marker" \
+                  || /bin/rmdir "$cmux_ssh_auth_cleanup_timer_dir" >/dev/null 2>&1 \
+                  || true
+              fi
+            ) &
+            cmux_ssh_auth_cleanup_timer_pid=$!
+          else
+            cmux_ssh_auth_cleanup_started_at=$(/bin/date +%s 2>/dev/null) || exit 0
+            case "$cmux_ssh_auth_cleanup_started_at" in ''|*[!0-9]*) exit 0 ;; esac
+            cmux_ssh_auth_cleanup_deadline=$((cmux_ssh_auth_cleanup_started_at + 1))
+          fi
           cmux_ssh_terminate_auth_process "$cmux_ssh_auth_tree_root_pid" "$cmux_ssh_auth_tree_root_parent"
+          if [ -n "$cmux_ssh_auth_cleanup_timer_pid" ]; then
+            wait "$cmux_ssh_auth_cleanup_timer_pid" 2>/dev/null || true
+          fi
+          if [ -n "$cmux_ssh_auth_cleanup_timer_dir" ]; then
+            /bin/rm -f "$cmux_ssh_auth_cleanup_timer_marker" >/dev/null 2>&1 || true
+            /bin/rmdir "$cmux_ssh_auth_cleanup_timer_dir" >/dev/null 2>&1 || true
+          fi
         )
         """
     }
