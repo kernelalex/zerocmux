@@ -117,7 +117,7 @@ extension Workspace {
 #endif
     }
 
-    /// Keep the checkpoint available to an explicit `cmux restore`, while
+    /// Keep the checkpoint available to an explicit `zerocmux restore`, while
     /// preventing an exited or superseded agent from replaying automatically.
     func retireAgentHookResumeBinding(
         panelId: UUID,

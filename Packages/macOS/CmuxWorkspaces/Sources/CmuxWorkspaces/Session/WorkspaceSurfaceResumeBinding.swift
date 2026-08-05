@@ -23,12 +23,12 @@ public protocol WorkspaceSurfaceResumeBinding: Sendable {
     var requiresPromptApproval: Bool { get }
     /// Whether this binding is explicitly configured for automatic resume.
     var autoResume: Bool? { get }
-    /// Whether startup should use the local shell-free `cmux restore` path.
+    /// Whether startup should use the local shell-free `zerocmux restore` path.
     var usesLocalRestoreVerb: Bool { get }
 
     /// Returns the startup input used to restore this binding.
     ///
-    /// Local bindings return a short `cmux restore` verb. Remote bindings may
+    /// Local bindings return a short `zerocmux restore` verb. Remote bindings may
     /// retain their compatibility command because the local CLI cannot replace
     /// a process on the remote host.
     func restoreStartupInput() -> String?

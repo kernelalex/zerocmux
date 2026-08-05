@@ -91,7 +91,7 @@ struct AgentResumeReturnShellStartupTests {
         let fileManager = FileManager.default
         let root = fileManager.temporaryDirectory
             .appendingPathComponent("cmux-9258-store-\(UUID().uuidString)", isDirectory: true)
-        let launcherDirectory = root.appendingPathComponent("cmux-r", isDirectory: true)
+        let launcherDirectory = root.appendingPathComponent("zerocmux-r", isDirectory: true)
         let staleLauncher = launcherDirectory.appendingPathComponent("stale.zsh", isDirectory: false)
         let currentLauncher = launcherDirectory.appendingPathComponent("current.zsh", isDirectory: false)
         let now = Date(timeIntervalSince1970: 2_000_000_000)

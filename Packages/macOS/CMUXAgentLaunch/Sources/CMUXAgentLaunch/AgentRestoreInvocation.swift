@@ -1,4 +1,4 @@
-/// The fully planned, shell-free invocation used by `cmux restore`.
+/// The fully planned, shell-free invocation used by `zerocmux restore`.
 public struct AgentRestoreInvocation: Equatable, Sendable {
     /// Process arguments, including `argv[0]`.
     public let arguments: [String]

@@ -187,7 +187,7 @@ struct SurfaceResumeAgentBindingGenerationTests {
         }
     }
 
-    @Test("A restored Grok binding relaunches through cmux restore across generations")
+    @Test("A restored Grok binding relaunches through zerocmux restore across generations")
     func restoredGrokBindingUsesRestoreVerbAcrossGenerations() throws {
         let defaultsName = "cmux-grok-binding-generation-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: defaultsName))

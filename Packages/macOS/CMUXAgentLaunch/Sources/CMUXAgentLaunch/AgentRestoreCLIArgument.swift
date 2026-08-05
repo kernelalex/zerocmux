@@ -1,6 +1,6 @@
 import Foundation
 
-/// One validated argument that can be typed in a readable `cmux restore` command.
+/// One validated argument that can be typed in a readable `zerocmux restore` command.
 public struct AgentRestoreCLIArgument: RawRepresentable, Equatable, Sendable {
     /// The validated shell-token-safe argument.
     public let rawValue: String
