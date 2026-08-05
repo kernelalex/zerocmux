@@ -1845,6 +1845,17 @@ jobs:
             COMPILER_INDEX_STORE_ENABLE=NO \
             CODE_SIGNING_ALLOWED=NO ASSETCATALOG_COMPILER_APPICON_NAME=AppIcon-Nightly build
 
+      - name: Validate Release updater repository
+        run: |
+          set -euo pipefail
+          APP_PLIST="build-universal/Build/Products/Release/zerocmux.app/Contents/Info.plist"
+          EXPECTED_FEED_URL="https://github.com/Enigma-Labs-Technology/zerocmux/releases/latest/download/appcast.xml"
+          ACTUAL_FEED_URL="$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$APP_PLIST")"
+          if [ "$ACTUAL_FEED_URL" != "$EXPECTED_FEED_URL" ]; then
+            echo "Release SUFeedURL expected '$EXPECTED_FEED_URL', found '$ACTUAL_FEED_URL'" >&2
+            exit 1
+          fi
+
       - name: Bound Xcode compilation cache size
         run: |
           set -euo pipefail
