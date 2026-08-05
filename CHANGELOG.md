@@ -4,6 +4,8 @@ All notable changes to zerocmux are documented here.
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-08-05
+
 ### Changed
 - Synced with upstream cmux through manaflow-ai/cmux@afe629534f (1,910
   commits), merged under the zero-telemetry policy: no analytics, no crash
@@ -45,6 +47,10 @@ All notable changes to zerocmux are documented here.
 - The sidebar agent spinner now follows its settings row
 
 ### Fixed
+- Updated Sparkle feeds, release notes, recovery downloads, in-app help, and
+  CLI documentation to use the
+  [Enigma Labs Technology repository](https://github.com/Enigma-Labs-Technology/zerocmux),
+  so startup update checks no longer route through the former repository
 - Removed an automatic script prefetch to unpkg.com that fired whenever a
   browser panel was created (including session restore); the React Grab
   overlay still fetches its script on demand when explicitly invoked
