@@ -842,7 +842,22 @@ jobs:
             CMUX_SKIP_ZIG_BUILD=1 \
             -only-testing:cmuxTests/NotificationRowSnapshotBoundaryTests \
             -only-testing:cmuxTests/NotificationScrollRestoreLifecycleTests \
-            -only-testing:cmuxTests/NotificationScrollRestoreRecoveryTests \
+              -only-testing:cmuxTests/NotificationScrollRestoreRecoveryTests \
+              test
+
+      - name: Run restored terminal CLI startup regression
+        run: |
+          set -euo pipefail
+          SOURCE_PACKAGES_DIR="$PWD/.ci-source-packages"
+          scripts/ci/run-in-console-session.sh \
+            scripts/ci/run-app-host-xcodebuild.sh \
+            -project cmux.xcodeproj -scheme zerocmux-unit -configuration Debug \
+            -derivedDataPath "$CMUX_DERIVED_DATA_PATH" \
+            -clonedSourcePackagesDirPath "$SOURCE_PACKAGES_DIR" \
+            -disableAutomaticPackageResolution \
+            -destination "platform=macOS" \
+            CMUX_SKIP_ZIG_BUILD=1 \
+            -only-testing:cmuxTests/AgentResumeReturnShellStartupTests \
             test
 
       - name: Run unit tests

@@ -10,8 +10,8 @@ import Testing
 
 @Suite("Agent resume return shell startup")
 struct AgentResumeReturnShellStartupTests {
-    @Test("local resume input is one short readable CLI command")
-    func localResumeInputUsesRestoreVerb() {
+    @Test("local resume input uses the bundled zerocmux CLI command")
+    func localResumeInputUsesZerocmuxRestoreVerb() {
         let sessionID = "019dad34-d218-7943-b81a-eddac5c87951"
         let agentBinding = SurfaceResumeBindingSnapshot(
             kind: "codex",
@@ -47,17 +47,17 @@ struct AgentResumeReturnShellStartupTests {
             agentBinding.restoreStartupInput(
                 repairPortableAgentExecutable: true
             )
-                == " cmux restore codex \(sessionID)\n"
+                == " zerocmux restore codex \(sessionID)\n"
         )
         #expect(
             manualBinding.restoreStartupInput(
                 repairPortableAgentExecutable: true
             )
-                == " cmux restore --surface\n"
+                == " zerocmux restore --surface\n"
         )
         #expect(
             snapshot.resumeStartupInput()
-                == " cmux restore codex \(sessionID)\n"
+                == " zerocmux restore codex \(sessionID)\n"
         )
     }
 
