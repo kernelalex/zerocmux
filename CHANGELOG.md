@@ -4,6 +4,13 @@ All notable changes to zerocmux are documented here.
 
 ## [Unreleased]
 
+## [1.2.4] - 2026-08-05
+
+### Fixed
+- Restored local agent terminals now invoke the bundled `zerocmux restore`
+  command instead of the legacy `cmux restore` name, preventing restart from
+  failing when only the canonical zerocmux CLI is installed
+
 ## [1.2.3] - 2026-08-05
 
 ### Changed
