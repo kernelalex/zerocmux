@@ -1,8 +1,8 @@
 import Foundation
 
 extension CMUXCLI {
-    static let settingsDocsURL = "https://github.com/kernelalex/zerocmux/blob/main/README.md#documentation"
-    static let settingsSchemaURL = "https://raw.githubusercontent.com/kernelalex/zerocmux/main/docs/data/cmux.schema.json"
+    static let settingsDocsURL = "https://github.com/Enigma-Labs-Technology/zerocmux/blob/main/README.md#documentation"
+    static let settingsSchemaURL = "https://raw.githubusercontent.com/Enigma-Labs-Technology/zerocmux/main/docs/data/cmux.schema.json"
     static let primarySettingsDisplayPath = "~/.config/cmux/cmux.json"
     static let legacySettingsDisplayPath = "~/.config/cmux/settings.json"
     static let fallbackSettingsDisplayPath = "~/Library/Application Support/com.kernelalex.zerocmux/settings.json"
@@ -29,7 +29,7 @@ extension CMUXCLI {
             webURL: settingsDocsURL,
             rawResources: [
                 DocsResource(label: "settings schema", url: settingsSchemaURL),
-                DocsResource(label: "zerocmux skill", url: "https://raw.githubusercontent.com/kernelalex/zerocmux/main/skills/cmux/SKILL.md"),
+                DocsResource(label: "zerocmux skill", url: "https://raw.githubusercontent.com/Enigma-Labs-Technology/zerocmux/main/skills/cmux/SKILL.md"),
             ],
             commands: [
                 "zerocmux settings path",
@@ -42,9 +42,9 @@ extension CMUXCLI {
             topic: "shortcuts",
             aliases: ["keyboard", "keybindings", "keys"],
             summary: "zerocmux-owned keyboard shortcuts and two-step chord syntax.",
-            webURL: "https://github.com/kernelalex/zerocmux/blob/main/README.md#keyboard-shortcuts",
+            webURL: "https://github.com/Enigma-Labs-Technology/zerocmux/blob/main/README.md#keyboard-shortcuts",
             rawResources: [
-                DocsResource(label: "shortcut data", url: "https://raw.githubusercontent.com/kernelalex/zerocmux/main/docs/data/cmux-shortcuts.ts"),
+                DocsResource(label: "shortcut data", url: "https://raw.githubusercontent.com/Enigma-Labs-Technology/zerocmux/main/docs/data/cmux-shortcuts.ts"),
                 DocsResource(label: "settings schema", url: settingsSchemaURL),
             ],
             commands: [
@@ -57,10 +57,10 @@ extension CMUXCLI {
             topic: "api",
             aliases: ["cli", "socket", "automation", "handles"],
             summary: "CLI/socket API, handle model, windows, workspaces, panes, and surfaces.",
-            webURL: "https://github.com/kernelalex/zerocmux/blob/main/docs/cli-contract.md",
+            webURL: "https://github.com/Enigma-Labs-Technology/zerocmux/blob/main/docs/cli-contract.md",
             rawResources: [
-                DocsResource(label: "CLI contract", url: "https://raw.githubusercontent.com/kernelalex/zerocmux/main/docs/cli-contract.md"),
-                DocsResource(label: "zerocmux skill", url: "https://raw.githubusercontent.com/kernelalex/zerocmux/main/skills/cmux/SKILL.md"),
+                DocsResource(label: "CLI contract", url: "https://raw.githubusercontent.com/Enigma-Labs-Technology/zerocmux/main/docs/cli-contract.md"),
+                DocsResource(label: "zerocmux skill", url: "https://raw.githubusercontent.com/Enigma-Labs-Technology/zerocmux/main/skills/cmux/SKILL.md"),
             ],
             commands: [
                 "zerocmux identify --json",
@@ -71,10 +71,10 @@ extension CMUXCLI {
             topic: "browser",
             aliases: ["browser-automation", "webview"],
             summary: "Browser panel automation commands and snapshot-driven web interaction.",
-            webURL: "https://github.com/kernelalex/zerocmux/blob/main/docs/agent-browser-port-spec.md",
+            webURL: "https://github.com/Enigma-Labs-Technology/zerocmux/blob/main/docs/agent-browser-port-spec.md",
             rawResources: [
-                DocsResource(label: "browser skill", url: "https://raw.githubusercontent.com/kernelalex/zerocmux/main/skills/cmux-browser/SKILL.md"),
-                DocsResource(label: "browser commands", url: "https://raw.githubusercontent.com/kernelalex/zerocmux/main/skills/cmux-browser/references/commands.md"),
+                DocsResource(label: "browser skill", url: "https://raw.githubusercontent.com/Enigma-Labs-Technology/zerocmux/main/skills/cmux-browser/SKILL.md"),
+                DocsResource(label: "browser commands", url: "https://raw.githubusercontent.com/Enigma-Labs-Technology/zerocmux/main/skills/cmux-browser/references/commands.md"),
             ],
             commands: [
                 "zerocmux browser --help",
@@ -85,11 +85,11 @@ extension CMUXCLI {
             topic: "agents",
             aliases: ["integrations", "agent-integrations"],
             summary: "Agent hook integrations, Feed approvals, notifications, and session restore.",
-            webURL: "https://github.com/kernelalex/zerocmux/blob/main/docs/agent-hooks.md",
+            webURL: "https://github.com/Enigma-Labs-Technology/zerocmux/blob/main/docs/agent-hooks.md",
             rawResources: [
-                DocsResource(label: "agent hook docs", url: "https://raw.githubusercontent.com/kernelalex/zerocmux/main/docs/agent-hooks.md"),
-                DocsResource(label: "feed docs", url: "https://raw.githubusercontent.com/kernelalex/zerocmux/main/docs/feed.md"),
-                DocsResource(label: "notifications docs", url: "https://raw.githubusercontent.com/kernelalex/zerocmux/main/docs/notifications.md"),
+                DocsResource(label: "agent hook docs", url: "https://raw.githubusercontent.com/Enigma-Labs-Technology/zerocmux/main/docs/agent-hooks.md"),
+                DocsResource(label: "feed docs", url: "https://raw.githubusercontent.com/Enigma-Labs-Technology/zerocmux/main/docs/feed.md"),
+                DocsResource(label: "notifications docs", url: "https://raw.githubusercontent.com/Enigma-Labs-Technology/zerocmux/main/docs/notifications.md"),
             ],
             commands: [
                 "zerocmux hooks setup",
@@ -103,9 +103,9 @@ extension CMUXCLI {
             topic: "dock",
             aliases: ["doc", "controls", "right-sidebar", "dock-json"],
             summary: "Custom right-sidebar terminal controls from .cmux/dock.json or ~/.config/cmux/dock.json.",
-            webURL: "https://github.com/kernelalex/zerocmux/blob/main/docs/dock.md",
+            webURL: "https://github.com/Enigma-Labs-Technology/zerocmux/blob/main/docs/dock.md",
             rawResources: [
-                DocsResource(label: "dock docs", url: "https://raw.githubusercontent.com/kernelalex/zerocmux/main/docs/dock.md"),
+                DocsResource(label: "dock docs", url: "https://raw.githubusercontent.com/Enigma-Labs-Technology/zerocmux/main/docs/dock.md"),
             ],
             commands: [
                 "zerocmux docs dock",
@@ -119,7 +119,7 @@ extension CMUXCLI {
             summary: "Vibe-code a custom sidebar: a runtime-interpreted SwiftUI-style file in ~/.config/cmux/sidebars/ (beta).",
             webURL: "https://cmux.com/docs/custom-sidebars",
             rawResources: [
-                DocsResource(label: "custom sidebar authoring guide", url: "https://raw.githubusercontent.com/kernelalex/zerocmux/main/docs/custom-sidebars.md"),
+                DocsResource(label: "custom sidebar authoring guide", url: "https://raw.githubusercontent.com/Enigma-Labs-Technology/zerocmux/main/docs/custom-sidebars.md"),
             ],
             commands: [
                 "mkdir -p ~/.config/cmux/sidebars",

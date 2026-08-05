@@ -93,7 +93,7 @@ APP_PLIST="$APP_PATH/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Delete :SUPublicEDKey" "$APP_PLIST" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Delete :SUFeedURL" "$APP_PLIST" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Add :SUPublicEDKey string $SPARKLE_PUBLIC_KEY_DERIVED" "$APP_PLIST"
-/usr/libexec/PlistBuddy -c "Add :SUFeedURL string https://github.com/kernelalex/zerocmux/releases/latest/download/appcast.xml" "$APP_PLIST"
+/usr/libexec/PlistBuddy -c "Add :SUFeedURL string https://github.com/Enigma-Labs-Technology/zerocmux/releases/latest/download/appcast.xml" "$APP_PLIST"
 echo "Sparkle keys injected"
 
 # zerocmux is a non-sandboxed app. Sparkle's sandbox-only XPC services make the
@@ -193,10 +193,10 @@ cask "zerocmux" do
   version "${VERSION}"
   sha256 "${DMG_SHA256}"
 
-  url "https://github.com/kernelalex/zerocmux/releases/download/v#{version}/zerocmux-macos.dmg"
+  url "https://github.com/Enigma-Labs-Technology/zerocmux/releases/download/v#{version}/zerocmux-macos.dmg"
   name "zerocmux"
   desc "Zero-telemetry native macOS terminal workspace for AI coding agents"
-  homepage "https://github.com/kernelalex/zerocmux"
+  homepage "https://github.com/Enigma-Labs-Technology/zerocmux"
 
   livecheck do
     url :url

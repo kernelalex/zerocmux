@@ -5,7 +5,7 @@ set -euo pipefail
 # Downloads cat photos over HTTPS, converts them to PNG, then renders them.
 
 cache_dir="${TMPDIR:-/tmp}/cmux-kitty-image-demo"
-curl_user_agent="cmux-kitty-image-demo/1.0 (https://github.com/kernelalex/zerocmux)"
+curl_user_agent="cmux-kitty-image-demo/1.0 (https://github.com/Enigma-Labs-Technology/zerocmux)"
 
 names=(
   "White Cat"

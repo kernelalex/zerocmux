@@ -1,4 +1,4 @@
-module github.com/kernelalex/zerocmux/daemon/remote
+module github.com/Enigma-Labs-Technology/zerocmux/daemon/remote
 
 go 1.22
 

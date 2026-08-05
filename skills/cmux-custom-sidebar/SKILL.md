@@ -13,7 +13,7 @@ This skill is the workflow summary. Read the complete authoring contract (every 
 
 ```bash
 zerocmux docs sidebars
-curl -fsSL https://raw.githubusercontent.com/kernelalex/zerocmux/main/docs/custom-sidebars.md
+curl -fsSL https://raw.githubusercontent.com/Enigma-Labs-Technology/zerocmux/main/docs/custom-sidebars.md
 ```
 
 ## Workflow

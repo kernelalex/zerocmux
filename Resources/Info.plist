@@ -243,7 +243,7 @@
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUFeedURL</key>
-	<string>https://github.com/kernelalex/zerocmux/releases/latest/download/appcast.xml</string>
+	<string>https://github.com/Enigma-Labs-Technology/zerocmux/releases/latest/download/appcast.xml</string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
 	<key>SUSendProfileInfo</key>

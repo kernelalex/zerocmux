@@ -35,11 +35,13 @@ case "$CHANNEL" in
     EXPECTED_NAME="zerocmux"
     EXPECTED_BUNDLE_ID="com.kernelalex.zerocmux"
     EXPECTED_ICON_NAME="AppIcon"
+    EXPECTED_FEED_URL="https://github.com/Enigma-Labs-Technology/zerocmux/releases/latest/download/appcast.xml"
     ;;
   nightly)
     EXPECTED_NAME="zerocmux NIGHTLY"
     EXPECTED_BUNDLE_ID="com.kernelalex.zerocmux.nightly"
     EXPECTED_ICON_NAME="AppIcon-Nightly"
+    EXPECTED_FEED_URL="https://github.com/Enigma-Labs-Technology/zerocmux/releases/download/nightly/appcast.xml"
     ;;
   *)
     usage >&2
@@ -67,6 +69,7 @@ expect_plist_value CFBundleDisplayName "$EXPECTED_NAME"
 expect_plist_value CFBundleIdentifier "$EXPECTED_BUNDLE_ID"
 expect_plist_value CFBundleIconFile "$EXPECTED_ICON_NAME"
 expect_plist_value CFBundleIconName "$EXPECTED_ICON_NAME"
+expect_plist_value SUFeedURL "$EXPECTED_FEED_URL"
 
 ICON_PATH="$APP_PATH/Contents/Resources/${EXPECTED_ICON_NAME}.icns"
 if [[ ! -s "$ICON_PATH" ]]; then

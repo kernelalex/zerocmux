@@ -14641,10 +14641,10 @@ private enum SidebarHelpMenuAction {
 }
 
 private struct SidebarHelpMenuButton: View {
-    private let docsURL = URL(string: "https://github.com/kernelalex/zerocmux/blob/main/README.md#documentation")
-    private let changelogURL = URL(string: "https://github.com/kernelalex/zerocmux/blob/main/CHANGELOG.md")
-    private let githubURL = URL(string: "https://github.com/kernelalex/zerocmux")
-    private let githubIssuesURL = URL(string: "https://github.com/kernelalex/zerocmux/issues")
+    private let docsURL = URL(string: "https://github.com/Enigma-Labs-Technology/zerocmux/blob/main/README.md#documentation")
+    private let changelogURL = URL(string: "https://github.com/Enigma-Labs-Technology/zerocmux/blob/main/CHANGELOG.md")
+    private let githubURL = URL(string: "https://github.com/Enigma-Labs-Technology/zerocmux")
+    private let githubIssuesURL = URL(string: "https://github.com/Enigma-Labs-Technology/zerocmux/issues")
     private let helpTitle = String(localized: "sidebar.help.button", defaultValue: "Help")
     private let buttonSize = SidebarFooterButtonMetrics.buttonSize
 #if DEBUG

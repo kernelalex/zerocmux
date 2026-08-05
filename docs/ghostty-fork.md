@@ -19,7 +19,7 @@ reachable from fork `main` through the merged
 https://github.com/manaflow-ai/ghostty/pull/120.
 The corresponding universal ReleaseFast GhosttyKit archive is built by the
 fork's `build-ghosttykit.yml` workflow, published at
-https://github.com/kernelalex/zerocmux/releases/tag/xcframework-bb30526cdab8f5fb08ae43e404e3aacc40d3ffc3-sentry-off-crashsubdir-zerocmux-crash-v1,
+https://github.com/Enigma-Labs-Technology/zerocmux/releases/tag/xcframework-bb30526cdab8f5fb08ae43e404e3aacc40d3ffc3-sentry-off-crashsubdir-zerocmux-crash-v1,
 and pinned in `scripts/ghosttykit-checksums.txt`.
 
 ### Tokened renderer presentation callbacks

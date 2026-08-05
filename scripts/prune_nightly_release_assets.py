@@ -39,7 +39,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Prune old immutable assets from the nightly GitHub release."
     )
-    parser.add_argument("--repo", required=True, help="owner/repo, for example kernelalex/zerocmux")
+    parser.add_argument("--repo", required=True, help="owner/repo, for example Enigma-Labs-Technology/zerocmux")
     parser.add_argument("--release-tag", default="nightly", help="GitHub release tag to prune")
     parser.add_argument(
         "--keep-builds",

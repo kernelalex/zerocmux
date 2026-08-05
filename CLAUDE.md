@@ -357,7 +357,7 @@ Manual release steps (if not using the command):
 ./scripts/release-pretag-guard.sh
 git tag vX.Y.Z
 git push origin vX.Y.Z
-gh run watch --repo kernelalex/zerocmux
+gh run watch --repo Enigma-Labs-Technology/zerocmux
 ```
 
 Notes:
@@ -373,9 +373,9 @@ Notes:
   `AWS_RELEASE_APPLE_SECRET_ARN`, and `AWS_RELEASE_SPARKLE_SECRET_ARN`.
 - The AWS IAM role trust policy should allow the GitHub OIDC provider only for
   audience `sts.amazonaws.com` and subject
-  `repo:kernelalex/zerocmux:environment:release`. The `v*` tag restriction is
-  enforced by the workflow trigger, protected tags, and the `release`
-  environment's deployment rules.
+  `repo:Enigma-Labs-Technology/zerocmux:environment:release`. The `v*` tag
+  restriction is enforced by the workflow trigger, protected tags, and the
+  `release` environment's deployment rules.
 - The AWS IAM role needs `secretsmanager:GetSecretValue` for only the two
   release secret ARNs and `secretsmanager:ListSecrets` for the account. Add
   `kms:Decrypt` for the relevant key if either secret uses a customer-managed
